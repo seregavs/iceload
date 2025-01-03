@@ -1,0 +1,53 @@
+move_type:
+  indentifier_fields: 'move_type'
+  srcformat: csv
+  database: db  
+  delimiter: ','
+  table_name: dwh_t_move_type
+  srcfiles: |
+    {"f": "/home/alpine/iceload/data/move_type/md_move_type.csv"}
+  loadmanytimes: True 
+  src_table_name: stg_t_move_type
+  iceberg_tbl_props: iceberg_tbl_props_01
+  attr_queries: 
+  create_table:
+    move_type STRING NOT NULL,
+    move_type_txt STRING,
+    zmat_scrp STRING NOT NULL,
+    alcokpi STRING NOT NULL,
+    alcokpios STRING NOT NULL,
+    alcokpioh STRING NOT NULL,
+    dcindic STRING NOT NULL,
+    alcokpio STRING NOT NULL,
+    rpa_rfl STRING NOT NULL,
+    ioindic STRING NOT NULL,
+    vndtype STRING NOT NULL,
+    zmt_grp1 STRING NOT NULL
+  insert_table:
+    move_type,
+    move_type_txt,
+    zmat_scrp,
+    alcokpi,
+    alcokpios,
+    alcokpioh,
+    dcindic,
+    alcokpio,
+    rpa_rfl,
+    ioindic,
+    vndtype,
+    zmt_grp1
+  insert_values:
+    coalesce(move_type,chr(0)),
+    move_type_txt,
+    coalesce(zmat_scrp,chr(0)),
+    coalesce(alcokpi,chr(0)),
+    coalesce(alcokpios,chr(0)),
+    coalesce(alcokpioh,chr(0)),
+    coalesce(dcindic,chr(0)),
+    coalesce(alcokpio,chr(0)),
+    coalesce(rpa_rfl,chr(0)),
+    coalesce(ioindic,chr(0)),
+    coalesce(vndtype,chr(0)),
+    coalesce(zmt_grp1,chr(0))
+  insert_where: (1 = 1)
+  # insert_order: 1

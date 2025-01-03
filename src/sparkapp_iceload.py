@@ -12,7 +12,7 @@ class IceLoad:
         srcfile_log_name - имя файла, в котором сохраняются обработанные файлы данных. Нужно для контроля повторной обработки файлов
         остальные переменные - компоненты SQL-запросов для логики автогенерации SQL
     """
-    icebergtbl_props = "icebergtbl_props.yaml"
+    icebergtbl_props = "/home/alpine/iceload/src/icebergtbl_props.yaml"
     request_fields_create = 'reqtsn STRING NOT NULL, datapakid STRING NOT NULL, record INT NOT NULL'
     request_fields_max = 'max(reqtsn || datapakid || to_char(record))'
     request_fields = 'reqtsn, datapakid, record'
@@ -506,7 +506,7 @@ if __name__ == "__main__":
     # il1 = IceLoad("plant", [], ["drop", "create", "insert", "recreate_attr"],
     #               "data/plant/config.yaml")              
     il1 = IceLoad("plant", [], ["delete", "insert"],
-                  "data/plant/config.yaml")
+                  "/home/alpine/iceload/data/plant/config.yaml")
     # il1 = IceLoad("material", [], ["dropcreate", "insert"],
     #               "data/material/config.yaml")
     # il1 = IceLoad("move_type", [], ["dropcreate", "insert", "checks"],

@@ -1,0 +1,116 @@
+cmlc07p33:
+  key_fields: base_uom, calday, comp_code, dcindic, inv_pty, loc_currcy, material, mat_unit, move_type, plant,stockcat, stocktype, stor_loc, username, vendor, zmatmrea, zsgtxt
+  key_fields_create: base_uom STRING  NOT NULL, calday DATE, comp_code STRING  NOT NULL,dcindic STRING  NOT NULL,inv_pty STRING  NOT NULL, loc_currcy STRING  NOT NULL, material STRING  NOT NULL, mat_unit STRING  NOT NULL, move_type STRING  NOT NULL, plant STRING  NOT NULL, stockcat STRING  NOT NULL, stocktype STRING  NOT NULL, stor_loc STRING  NOT NULL, username STRING  NOT NULL, vendor STRING  NOT NULL,zmatmrea STRING  NOT NULL, zsgtxt STRING  NOT NULL
+  sum_keyfigures: SUM(quant_b) as quant_b, SUM(value_lc) as value_lc, SUM(zaltcost) as zaltcost, SUM(zicomargn) as zicomargn
+  add_identifier: False
+  srcformat: parquet
+  database: db
+  dstype: adso-cube
+  table_name: dwh_t_cmlc07p33
+  srcfiles: |
+    {"f": "/home/alpine/iceload/data/cmlc07p331/cmlc07p331_20241225.parquet"}
+  src_table_name: stg_t_cmlc07p33
+  iceberg_tbl_props: iceberg_tbl_props_01
+  create_table: |
+    base_uom STRING  NOT NULL, 
+    calday DATE NOT NULL, 
+    comp_code STRING  NOT NULL, 
+    dcindic STRING  NOT NULL, 
+    inv_pty STRING  NOT NULL, 
+    loc_currcy STRING  NOT NULL, 
+    material STRING  NOT NULL, 
+    mat_unit STRING  NOT NULL, 
+    move_type STRING  NOT NULL, 
+    plant STRING  NOT NULL, 
+    quant_b DECIMAL(17,3), 
+    stockcat STRING  NOT NULL, 
+    stocktype STRING  NOT NULL, 
+    stor_loc STRING  NOT NULL, 
+    username STRING  NOT NULL, 
+    value_lc DECIMAL(17,2), 
+    vendor STRING  NOT NULL, 
+    zaltcost DECIMAL(17,2), 
+    zmatmrea STRING  NOT NULL, 
+    zsgtxt STRING  NOT NULL, 
+    zicomargn DECIMAL(17,2)
+  partition: month(calday)
+  views: 12
+  insert_table: |
+    base_uom, 
+    calday, 
+    comp_code, 
+    dcindic, 
+    inv_pty, 
+    loc_currcy, 
+    material, 
+    mat_unit, 
+    move_type, 
+    plant, 
+    quant_b, 
+    stockcat, 
+    stocktype, 
+    stor_loc, 
+    username, 
+    value_lc, 
+    vendor, 
+    zaltcost, 
+    zmatmrea, 
+    zsgtxt, 
+    zicomargn
+  insert_values: |
+    reqtsn,
+    datapakid,
+    cast(record as INT),
+    '',
+    ifnull(base_uom,chr(0)),
+    to_date(calday, 'yyyyMMdd'),
+    ifnull(comp_code,chr(0)),
+    ifnull(dcindic,chr(0)),
+    ifnull(inv_pty,chr(0)),
+    ifnull(loc_currcy,chr(0)),
+    ifnull(material,chr(0)),
+    ifnull(mat_unit,chr(0)),
+    ifnull(move_type,chr(0)),
+    ifnull(plant,chr(0)),
+    CAST(quant_b as decimal(17,3)),
+    ifnull(stockcat,chr(0)),
+    ifnull(stocktype,chr(0)),
+    ifnull(stor_loc,chr(0)),
+    ifnull(username,chr(0)),
+    CAST(value_lc as decimal(17,2)),
+    ifnull(vendor,chr(0)),
+    CAST(zaltcost as decimal(17,2)),
+    ifnull(zmatmrea,chr(0)),
+    ifnull(zsgtxt,chr(0)),
+    CAST(zicomargn as decimal(17,2))
+  merge: |
+    target.base_uom = source.base_uom AND
+    target.calday = source.calday AND
+    target.comp_code = source.comp_code AND
+    target.dcindic = source.dcindic AND
+    target.inv_pty = source.inv_pty AND
+    target.loc_currcy = source.loc_currcy AND
+    target.material = source.material AND
+    target.mat_unit = source.mat_unit AND
+    target.move_type = source.move_type AND
+    target.plant = source.plant AND
+    target.stockcat = source.stockcat AND
+    target.stocktype = source.stocktype AND
+    target.stor_loc = source.stor_loc AND
+    target.username = source.username AND
+    target.vendor = source.vendor AND
+    target.zmatmrea = source.zmatmrea AND
+    target.zsgtxt = source.zsgtxt
+    WHEN MATCHED THEN UPDATE SET
+    target.quant_b = target.quant_b + source.quant_b,
+    target.value_lc = target.value_lc + source.value_lc,
+    target.zaltcost = target.zaltcost + source.zaltcost,
+    target.zicomargn = target.zicomargn + source.zicomargn
+    WHEN NOT MATCHED THEN INSERT (
+    base_uom, calday, comp_code, dcindic, inv_pty, loc_currcy,material, 
+    mat_unit, move_type, plant, quant_b, stockcat, stocktype, stor_loc, 
+    username, value_lc, vendor, zaltcost, zmatmrea, zsgtxt, zicomargn)
+    VALUES (
+    source.base_uom,source.calday,source.comp_code,source.dcindic,source.inv_pty,source.loc_currcy, source.material,
+    source.mat_unit,source.move_type,source.plant,source.quant_b,source.stockcat,source.stocktype,source.stor_loc,
+    source.username,source.value_lc,source.vendor,source.zaltcost,source.zmatmrea,source.zsgtxt,source.zicomargn)
