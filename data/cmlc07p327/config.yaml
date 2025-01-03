@@ -1,0 +1,68 @@
+cmlc07p32:
+  indentifier_fields: calday,comp_code,material,plant,move_type,stor_loc,stocktype,stockcat
+  dstype: adso-std
+  srcformat: orc
+  database: db
+  table_name: dwh_t_cmlc07p32
+  srcfiles: |
+    {"f": "/home/alpine/iceload/data/cmlc07p327/cmlc07p327-000.orc"},
+    {"f": "/home/alpine/iceload/data/cmlc07p327/cmlc07p327-001.orc"}
+  src_table_name: stg_t_cmlc07p32
+  iceberg_tbl_props: iceberg_tbl_props_01
+  create_table:
+    base_uom STRING  NOT NULL, 
+    calday STRING  NOT NULL, 
+    comp_code STRING  NOT NULL, 
+    dcindic STRING  NOT NULL, 
+    inv_pty STRING  NOT NULL, 
+    material STRING  NOT NULL, 
+    mat_unit STRING  NOT NULL, 
+    move_type STRING  NOT NULL, 
+    plant STRING  NOT NULL, 
+    quant_b DECIMAL(17,3) , 
+    stockcat STRING  NOT NULL, 
+    stocktype STRING  NOT NULL, 
+    stor_loc STRING  NOT NULL, 
+    username STRING  NOT NULL, 
+    value_lc DECIMAL(17,2) , 
+    vendor STRING  NOT NULL, 
+    zaltcost DECIMAL(17,2) , 
+    zmatmrea STRING  NOT NULL
+  insert_table:
+    base_uom, 
+    calday, 
+    comp_code, 
+    dcindic, 
+    inv_pty, 
+    material, 
+    mat_unit, 
+    move_type, 
+    plant, 
+    quant_b, 
+    stockcat, 
+    stocktype, 
+    stor_loc, 
+    username, 
+    value_lc, 
+    vendor, 
+    zaltcost, 
+    zmatmrea
+  insert_values:
+    0base_uom, 
+    0calday, 
+    0comp_code, 
+    0dcindic, 
+    0inv_pty, 
+    0material, 
+    0mat_unit, 
+    0move_type, 
+    0plant, 
+    0quant_b, 
+    0stockcat, 
+    0stocktype, 
+    0stor_loc, 
+    0username, 
+    0value_lc, 
+    0vendor, 
+    zaltcost, 
+    zmatmrea
