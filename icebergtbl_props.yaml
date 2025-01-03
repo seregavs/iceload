@@ -1,0 +1,26 @@
+iceberg_tbl_props_01: |
+  ('format-version'='2',
+  'format' = 'iceberg/parquet',
+  'write.distribution-mode' = 'hash',
+  'write.delete.mode' = 'merge-on-read',
+  'write.merge.mode' = 'merge-on-read',
+  'write.update.mode' = 'merge-on-read',
+  'write.metadata.delete-after-commit.enabled' = 'true',
+  'write.metadata.previous-versions-max' = '10',
+  'write.metadata.metrics.default' = 'full',
+  'write.parquet.compression-codec' = 'zstd',
+  'write.parquet.compression-level' = '3',
+  'write.metadata.metrics.max-inferred-column-defaults' = '100')
+iceberg_tbl_props_02: |
+  ('option.format-version'='2',
+  'option.format' = 'iceberg/parquet',
+  'option.write.distribution-mode' = 'hash',
+  'option.write.delete.mode' = 'merge-on-read',
+  'option.write.merge.mode' = 'merge-on-read',
+  'option.write.update.mode' = 'merge-on-read',
+  'option.write.metadata.delete-after-commit.enabled' = 'true',
+  'option.write.metadata.previous-versions-max' = '100',
+  'option.write.metadata.metrics.default' = 'full',
+  'option.write.parquet.compression-codec' = 'zstd',
+  'option.write.parquet.compression-level' = '3',
+  'option.write.metadata.metrics.max-inferred-column-defaults' = '100')
