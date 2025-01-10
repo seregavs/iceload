@@ -267,13 +267,13 @@ class IceLoad:
         self.__init_spark()
         self.spark.sql("use {0}".format(self.sparkdb)).show(10)
         for item in self.actions:
-            if item == 'drop':
+            if (item == 'drop') or (item == 'drop0'):
                 self.__action_drop()
             elif item == 'drop1':
                 self.__action_drop('1')
             elif item == 'drop2':
                 self.__action_drop('2')
-            elif item == 'delete':
+            elif (item == 'delete') or (item == 'delete0'):
                 self.__action_delete()
             elif item == 'delete1':
                 self.__action_delete('1')
@@ -281,7 +281,7 @@ class IceLoad:
                 self.__action_delete('2')
             elif item == 'delete5':
                 self.__action_delete('5')
-            elif item == 'create':
+            elif (item == 'create') or (item == 'create0'):
                 self.__action_create()
             elif item == 'create1':
                 self.__action_create('1')
@@ -420,7 +420,7 @@ class IceLoad:
             elif self.srcformat == 's3-orc':
                 df = self.spark.read.orc(f's3a://{self.srcbucket}/{self.md}/{li}')
             df.createOrReplaceTempView(self.srctbl_name)
-            
+
             if not self.safe_dml:  # вставка в основную ветку main
                 query = '''INSERT INTO {1}.{0} ({2}) (
                             SELECT {3} FROM {4} WHERE {5} {6})'''\
@@ -445,7 +445,7 @@ class IceLoad:
                     self.__print('{0} Fast_forward {2}.{1}: main->{3}'.format(self.__get_time(), tname, self.sparkdb, branch))  
                 else:
                     query = "ALTER TABLE {0}.{1} DROP BRANCH `{2}`".format(self.sparkdb, tname, branch)
-                    self.__print('{0} Drop brunch {3} from {2}.{1}'.format(self.__get_time(), tname, self.sparkdb, branch))  
+                    self.__print('{0} Drop branch {3} from {2}.{1}'.format(self.__get_time(), tname, self.sparkdb, branch))  
                 self.spark.sql(query).show(30, truncate=False)
 
             self.__srcfile_processed('a', li)
