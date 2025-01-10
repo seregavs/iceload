@@ -4,6 +4,7 @@ import datetime
 import yaml
 import json
 import boto3
+from pydantic import TypeAdapter
 from typing import List
 
 
@@ -21,6 +22,9 @@ class IceLoad:
     k_table_prefix1 = "SELECT substr(mkey,1,23) as reqtsn, substr(mkey,24,6) as datapakid, cast(substr(mkey,30,8) as integer) as record"
     k_table_prefix2 = "FROM (SELECT max(reqtsn || datapakid || record) as mkey "
     srcfile_log_name = 'srcfile.log'
+    bucket_default = 'stg-bi-1'
+    database_default = 'db'
+    safe_dml_default = False
     # log_time_indent = ' 0000s. '
 
     def __init__(self, md: str, srcfiles: list,
@@ -63,10 +67,10 @@ class IceLoad:
 
         exp_d = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(days=-1)
         self.exp_ts = exp_d.strftime("%Y-%m-%d %H:%M:%S.000")
-        self.database = self.md_params[md].get('database', 'db')
+        self.database = self.md_params[md].get('database', self.database_default)
         self.sparkdb = "{0}.{1}".format(spark_const.spark_catalog, self.database)
         self.srcformat = self.md_params[md]['srcformat']
-        self.srcbucket = self.md_params[md].get('srcbucket', 'stg-bi-1')
+        self.srcbucket = self.md_params[md].get('srcbucket', self.bucket_default)
         self.loadmanytimes = self.md_params[md].get('loadmanytimes', '')
         self.__init_params()
     
@@ -176,6 +180,7 @@ class IceLoad:
         self.insert_where = self.md_params[self.md].get('insert_where', '(1=1)')
         self.insert_order = self.md_params[self.md].get('insert_order', '')
         self.views = self.md_params[self.md].get('views', '')
+        self.safe_dml = TypeAdapter(bool).validate_python(self.md_params[self.md].get('safe_dml', self.safe_dml_default))
         self.add_identifier = self.md_params[self.md].get('add_identifier', '')
         self.__print_init_params()
 
@@ -200,6 +205,7 @@ class IceLoad:
         self.__print("   expiration ts={0}".format(self.exp_ts))
         self.__print("   src format={0}".format(self.srcformat))
         self.__print("   src bucket={0}".format(self.srcbucket))
+        self.__print("   safe dml={0}".format(self.safe_dml))
         self.__print("   source files={0}".format(self.srcfiles))
         self.__print("   spark database={0}".format(self.sparkdb))
 
@@ -215,6 +221,16 @@ class IceLoad:
         output = f'{ts.strftime("%Y-%m-%d %H:%M:%S")} {distance.seconds:04}s.'
         self.prev_ts = ts
         return output
+    
+    def __get_timestr(self) -> str:
+        """Генерация строки с текущим временем .
+        Нужно для добавления в имя 
+
+        Returns:
+            str: строка с текущим временем
+        """
+        ts = datetime.datetime.now()
+        return f'{ts.strftime("%Y%m%d%H%M%S")}'
 
     def __get_total_time(self) -> str:
         """метод для вывода длительности работы сессии iceload
@@ -337,7 +353,7 @@ class IceLoad:
             tcreate_table = self.create_table
         query = '''CREATE OR REPLACE TABLE {1}.{0} ({3}) USING iceberg {4} TBLPROPERTIES {2}
                 '''.format(tname, self.sparkdb, self.tbl_props, tcreate_table, self.partition)
-        print(query)
+        # print(query)
         self.spark.sql(query).show(1, truncate=False)
         if self.add_identifier and n == '0':
             query = '''ALTER TABLE {1}.{0} SET IDENTIFIER FIELDS {2}'''\
@@ -380,8 +396,8 @@ class IceLoad:
 
         Args:
             n (str, optional): номер таблицы, соотв. таблице в ADSO (1,2 или 5).
-             0 - обычно для таблиц справочников, которые в SAP BW не имеют цифрового суффикса
-             Defaults to '0'.
+            0 - обычно для таблиц справочников, которые в SAP BW не имеют цифрового суффикса
+            Defaults to '0'.
         """
         if n in ['0']:
             tname = self.tbl_name
@@ -404,12 +420,34 @@ class IceLoad:
             elif self.srcformat == 's3-orc':
                 df = self.spark.read.orc(f's3a://{self.srcbucket}/{self.md}/{li}')
             df.createOrReplaceTempView(self.srctbl_name)
-            query = '''INSERT INTO {1}.{0} ({2}) (
-                        SELECT {3} FROM {4} WHERE {5} {6})'''\
-                    .format(tname, self.sparkdb, tinsert_table,
-                            self.insert_values, self.srctbl_name, self.insert_where,
-                            '' if self.insert_order == '' else ' ORDER BY {0}'.format(self.insert_order))
-            self.spark.sql(query).show(10, truncate=False)
+            
+            if not self.safe_dml:  # вставка в основную ветку main
+                query = '''INSERT INTO {1}.{0} ({2}) (
+                            SELECT {3} FROM {4} WHERE {5} {6})'''\
+                        .format(tname, self.sparkdb, tinsert_table,
+                                self.insert_values, self.srctbl_name, self.insert_where,
+                                '' if self.insert_order == '' else ' ORDER BY {0}'.format(self.insert_order))
+                self.spark.sql(query).show(10, truncate=False)
+            else:  # вставка в отдельную ветку и merge c основной веткой в случае успеха. И ничего в случае неуспеха проверки
+                branch = f'new{self.__get_timestr()}'
+                query = """ALTER TABLE {0}.{1} CREATE BRANCH `{2}` RETAIN 2 DAYS""".format(self.sparkdb, tname, branch)
+                self.spark.sql(query).show(30, truncate=False)
+                query = '''INSERT INTO {1}.{0}.branch_{7} ({2}) (
+                            SELECT {3} FROM {4} WHERE {5} {6})'''\
+                        .format(tname, self.sparkdb, tinsert_table,
+                                self.insert_values, self.srctbl_name, self.insert_where,
+                                '' if self.insert_order == '' else ' ORDER BY {0}'.format(self.insert_order), branch)
+                self.spark.sql(query).show(10, truncate=False)
+                checks = self.__action_checks()
+                self.__print('{0} Checks with {2}.{1}={3}'.format(self.__get_time(), tname, self.sparkdb, checks))                 
+                if checks:
+                    query = "CALL system.fast_forward('{0}.{1}', 'main', '{2}')".format(self.sparkdb, tname, branch)
+                    self.__print('{0} Fast_forward {2}.{1}: main->{3}'.format(self.__get_time(), tname, self.sparkdb, branch))  
+                else:
+                    query = "ALTER TABLE {0}.{1} DROP BRANCH `{2}`".format(self.sparkdb, tname, branch)
+                    self.__print('{0} Drop brunch {3} from {2}.{1}'.format(self.__get_time(), tname, self.sparkdb, branch))  
+                self.spark.sql(query).show(30, truncate=False)
+
             self.__srcfile_processed('a', li)
             self.__print('{0} INSERT INTO {2}.{1}'.format(self.__get_time(), tname, self.sparkdb))     
             self.__post_processing(tname)
@@ -527,9 +565,14 @@ class IceLoad:
                 print(query)
                 self.__print("{0} VIEWS in {2} FOR {1}".format(self.__get_time(), self.md, self.sparkdb))
  
-    def __action_checks(self):
+    def __action_checks(self) -> bool:
         """Действие: запуск проверок данных на консистентность и сходимость.
         Запросы для проверок определены в config.yaml
         """
+        checks = True
         self.__print("{0} Проверки для {1} выполнены. См. журнал".
                      format(self.__get_time(), self.md))
+        if checks:
+            return True
+        else:
+            return False
