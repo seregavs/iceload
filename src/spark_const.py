@@ -21,6 +21,13 @@ conf_2g_ice_warehouse2 = (SparkConf()
             .set(f"spark.sql.catalog.{spark_catalog}.write.metadata.previous-versions-max", "5")
         )
 
+ 
+YC_ACCESS_KEY_ID = ''
+YC_SECRET_ACCESS_KEY = ''
+YC_REGION_NAME = 'ru-central1'
+YC_ENDPOINT_URL = 'https://storage.yandexcloud.net'
+
+
 DB_HOST = os.environ.get("PG_HOST") if os.environ.get("PG_HOST") else 'localhost'
 DB_PORT = os.environ.get("PG_PORT") if os.environ.get("PG_PORT") else '5432'
 DB_NAME = os.environ.get("PG_DB_CLEAN") if os.environ.get("PG_DB_CLEAN") else 'alpdb'

@@ -7,11 +7,15 @@ database = 'db'
 sparkdb = "{0}.{1}".format(spark_const.spark_catalog, database)
 
 spark = SparkSession.builder.master("local[2]").config(conf=spark_const.conf_2g_ice_warehouse2).getOrCreate()
-li = '/home/alpine/etlakehouse/data/cmlc70993_20241220.csv'
+# li = '/home/alpine/etlakehouse/data/cmlc70993_20241220.csv'
+li = '/home/alpine/iceload/data/cmlc01c5/cmlc01c5_20250110.csv'
+dst_file = '/home/alpine/iceload/data/cmlc01c5/cmlc01c5_20250110.orc'
 # li = '/home/alpine/etlakehouse/data/cmlc.csv'
 delimiter = ','
 # https://spark.apache.org/docs/3.5.3/sql-data-sources-csv.html
-# df = spark.read.options(delimiter=delimiter, header=True, escape="\\").csv(li)
+
+df = spark.read.options(delimiter=delimiter, header=True, escape="\\").csv(li)
+df.show(5, truncate=False)
 
 # spark.sql('''SHOW CREATE TABLE db.dwh_t_{0}'''.format(li['t'])).show(100, truncate=False)
 
@@ -21,7 +25,10 @@ delimiter = ','
 spark.sql("SET spark.sql.ansi.enabled=true").show(10)
 # df.write.mode('overwrite').parquet("/home/alpine/etlakehouse/data/cmlc70993_20241220.parquet")
 # df = spark.read.parquet("/home/alpine/etlakehouse/data/cmlc70993_20241220.parquet")
-# df.printSchema()
+df.printSchema()
+df.write.mode('overwrite').orc(dst_file)
+df = spark.read.orc(dst_file)
+print(f'orc count {df.count()}')
 # df.createOrReplaceTempView('TTTT')
 # print(df.count())
 # spark.sql("SET spark.sql.ansi.enabled=true").show(10)
@@ -43,10 +50,10 @@ spark.sql("SET spark.sql.ansi.enabled=true").show(10)
 # query = """SELECT * FROM TTTT WHERE MAT_DOC BETWEEN '4186657603' AND '4186657604' ORDER BY MAT_DOC, MAT_ITEM"""
 # query = """SELECT * FROM TTTT WHERE VALUE_LC = 'RUB'"""
 
-print(spark.sql("SELECT * FROM local.db.dwh_t_cmlc0991").count())
-print(spark.sql("SELECT * FROM local.db.dwh_t_cmlc0992").count())
-print(spark.sql("SELECT * FROM local.db.dwh_k_cmlc0991").count())
-quit()
+# print(spark.sql("SELECT * FROM local.db.dwh_t_cmlc0991").count())
+# print(spark.sql("SELECT * FROM local.db.dwh_t_cmlc0992").count())
+# print(spark.sql("SELECT * FROM local.db.dwh_k_cmlc0991").count())
+# quit()
 # spark.sql("SELECT * FROM local.db.dwh_k_cmlc0991 WHERE cnt > 1").show(10, truncate=False)
 # df.printSchema() INTL
 # spark.sql(query).show(100, truncate=False)
