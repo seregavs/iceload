@@ -1,0 +1,60 @@
+cmlc01c2:
+  add_identifier: False
+  srcformat: orc
+  database: db
+  dstype: adso-std
+  table_name: dwh_t_cmlc01c2
+  srcfiles: |
+    {"f": "/home/alpine/iceload/data/cmlc01c2/cmlc01c2_20250110.orc"}
+  src_table_name: stg_t_cmlc01c2
+  iceberg_tbl_props: iceberg_tbl_props_01
+  create_table:
+    base_uom STRING  NOT NULL, 
+    loc_currcy STRING  NOT NULL, 
+    plant STRING  NOT NULL, 
+    material STRING  NOT NULL, 
+    stor_loc STRING  NOT NULL, 
+    valspecst STRING  NOT NULL, 
+    recordmode STRING, 
+    recordtp STRING  NOT NULL, 
+    calday DATE, 
+    cptstisbu DECIMAL(17,3), 
+    cptstispv DECIMAL(17,2), 
+    cptstrebu DECIMAL(17,3), 
+    cptstrepv DECIMAL(17,2), 
+    altstispv DECIMAL(17,2), 
+    altstrepv DECIMAL(17,2)
+  partition: month(calday)
+  views: 12
+  insert_table: |
+    base_uom, 
+    loc_currcy, 
+    plant, 
+    material, 
+    stor_loc, 
+    valspecst, 
+    recordmode, 
+    recordtp, 
+    calday, 
+    cptstisbu, 
+    cptstispv, 
+    cptstrebu, 
+    cptstrepv, 
+    altstispv, 
+    altstrepv
+  insert_values: |
+    ifnull(base_uom,chr(0)),
+    ifnull(loc_currcy,chr(0)),
+    ifnull(plant,chr(0)),
+    ifnull(material,chr(0)),
+    ifnull(stor_loc,chr(0)),
+    ifnull(valspecst,chr(0)),
+    ifnull(recordmode,chr(0)),
+    ifnull(recordtp,chr(0)),
+    to_date(calday, 'yyyyMMdd'),
+    CAST(cptstisbu AS DECIMAL(17,3)),
+    CAST(cptstispv AS DECIMAL(17,2)),
+    CAST(cptstrebu AS DECIMAL(17,3)),
+    CAST(cptstrepv AS DECIMAL(17,2)),
+    CAST(altstispv AS DECIMAL(17,2)),
+    CAST(altstrepv AS DECIMAL(17,2))
