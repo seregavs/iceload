@@ -5,7 +5,7 @@ material:
   table_name: dwh_t_material
   # srcfile: /home/alpine/etlakehouse/data/md_material.orc
   srcfiles: |
-    {"f": "/home/alpine/iceload/data/material/md_material.orc"}
+    {"f": "/home/alpine/iceload/data/material/md_material2.orc"}
   src_table_name: stg_t_material
   loadmanytimes: True 
   iceberg_tbl_props: iceberg_tbl_props_01
