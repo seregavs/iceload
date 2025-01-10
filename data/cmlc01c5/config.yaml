@@ -3,6 +3,7 @@ cmlc01c5:
   srcformat: orc
   database: db
   dstype: adso-std
+  safe_dml: True
   table_name: dwh_t_cmlc01c5
   srcfiles: |
     {"f":  "/home/alpine/iceload/data/cmlc01c5/cmlc01c5_20250110.orc"}
