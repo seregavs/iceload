@@ -1,8 +1,9 @@
 from iceload import IceLoad
 
 if __name__ == "__main__":
-    # il1 = IceLoad("cmlc099", [], ["create", "insert"],
-    #               "data/cmlc0993/config.yaml")
+    # il1 = IceLoad("cmlc7o99", ["/home/alpine/iceload/data/cmlc7o99/t1/cmlc70993_20241220.parquet"],
+    #               ["dropcreate1", "dropcreate2", "insert1", "merge12"],
+    #               "/home/alpine/iceload/data/cmlc7o99/config.yaml")
     # il1 = IceLoad("plant", [], ["drop", "create", "insert", "recreate_attr"],
     #               "data/plant/config.yaml")              
     # il1 = IceLoad("plant", [], ["delete", "insert"],
@@ -26,7 +27,12 @@ if __name__ == "__main__":
     #               "/home/alpine/iceload/data/cmlc01c1/config.yaml")
     # il1 = IceLoad("cmlc01c2", [], ["dropcreate", "insert"],
     #               "/home/alpine/iceload/data/cmlc01c2/config.yaml")
-    il1 = IceLoad("cmlc01c5", [], ["dropcreate", "insert"],
-                  "/home/alpine/iceload/data/cmlc01c5/config.yaml")
+    il1 = IceLoad("cmlc01c", ["/home/alpine/iceload/data/cmlc01c/t1/cmlc01c1_20250110.orc"], 
+                  ["dropcreate1", "insert1"], "/home/alpine/iceload/data/cmlc01c/config.yaml")
+    # il1 = IceLoad("cmlc01c", ["/home/alpine/iceload/data/cmlc01c/t2/cmlc01c2_20250110.orc"], 
+    #               ["dropcreate2", "insert2"], "/home/alpine/iceload/data/cmlc01c/config.yaml")
+    # il1 = IceLoad("cmlc01c", ["/home/alpine/iceload/data/cmlc01c/t5/cmlc01c5_20250110.orc"], 
+    #               ["dropcreate5", "insert5"], "/home/alpine/iceload/data/cmlc01c/config.yaml")
+
     il1.run_action()
     il1.finish()

@@ -1,17 +1,14 @@
-cmlc01c1:
+cmlc01c:
   add_identifier: False
   srcformat: orc
   database: db
   dstype: adso-std
-  table_name: dwh_t_cmlc01c1
+  table_name: dwh_t_cmlc01c
   srcfiles: |
-    {"f": "/home/alpine/iceload/data/cmlc01c1/cmlc01c1_20250110.orc"}
-  src_table_name: stg_t_cmlc01c1
+    {"f": "/home/alpine/iceload/data/cmlc01c/cmlc01c1_20250110.orc"}
+  src_table_name: stg_t_cmlc01c
   iceberg_tbl_props: iceberg_tbl_props_01
   create_table:
-    reqtsn STRING  NOT NULL, 
-    datapakid STRING  NOT NULL, 
-    record INT, 
     recordmode STRING, 
     recordtp STRING, 
     calday DATE  NOT NULL, 
@@ -30,9 +27,6 @@ cmlc01c1:
   partition: month(calday)
   views: 12
   insert_table: |
-    reqtsn,
-    datapakid,
-    record,
     recordmode,
     recordtp, 
     calday, 
@@ -49,9 +43,6 @@ cmlc01c1:
     altstispv, 
     altstrepv
   insert_values: |
-    reqtsn,
-    datapakid,
-    cast(record as INT),
     recordmode,
     ifnull(recordtp,chr(0)),
     to_date(calday, 'yyyyMMdd'),

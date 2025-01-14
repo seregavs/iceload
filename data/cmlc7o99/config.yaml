@@ -1,16 +1,17 @@
-cmlc099:
+cmlc7o99:
   key_fields: mat_doc, doc_year, mat_item, stocktype
   key_fields_create: mat_doc STRING NOT NULL, doc_year STRING NOT NULL, mat_item STRING  NOT NULL, stocktype STRING  NOT NULL
   add_identifier: False
   srcformat: parquet
   database: db
   dstype: adso-std
-  table_name: dwh_t_cmlc099
+  table_name: dwh_t_cmlc7o99
   srcfiles: |
-    {"f": "/home/alpine/iceload/data/cmlc709931/cmlc70993_20241220.parquet"}
-  src_table_name: stg_t_cmlc099
+    {"f": "/home/alpine/iceload/data/cmlc7o99/cmlc70993_20241220.parquet"}
+  src_table_name: stg_t_cmlc7o99
   iceberg_tbl_props: iceberg_tbl_props_01
   create_table:
+    recordmode STRING, 
     mat_doc STRING  NOT NULL, 
     doc_year STRING  NOT NULL, 
     mat_item STRING  NOT NULL, 
@@ -63,6 +64,7 @@ cmlc099:
   partition: month(pstng_date)
   views: 12
   insert_table: |
+    recordmode,
     mat_doc,
     doc_year,
     mat_item,
@@ -113,9 +115,6 @@ cmlc099:
     zsgtxt,
     zicomargn
   insert_values: |
-    reqtsn,
-    datapakid,
-    cast(record as INT),
     recordmode,
     ifnull(mat_doc,chr(0)),
     ifnull(doc_year,chr(0)),
@@ -171,7 +170,7 @@ cmlc099:
     AND target.doc_year = source.doc_year
     AND target.mat_item = source.mat_item
     AND target.stocktype = source.stocktype
-    WHEN MATCHED AND recordmode = NULL THEN 
+    WHEN MATCHED AND source.recordmode = NULL THEN 
     UPDATE SET 
       target.pstng_date = to_date(source.pstng_date, 'yyyyMMdd'),
       target.doc_date = to_date(source.doc_date, 'yyyyMMdd'),
@@ -218,7 +217,7 @@ cmlc099:
       target.cpquabu = CAST(source.cpquabu AS DECIMAL(17,3)),
       target.zsgtxt = source.zsgtxt,
       target.zicomargn = CAST(source.zicomargn AS DECIMAL(17,2))
-    WHEN MATCHED AND recordmode = 'D' THEN DELETE     
+    WHEN MATCHED AND source.recordmode = 'D' THEN DELETE     
     WHEN NOT MATCHED THEN 
     INSERT (
         mat_doc, 
