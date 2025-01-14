@@ -21,7 +21,7 @@ class IceLoad:
     request_fields_join = 't1.reqtsn = t2.reqtsn AND t1.datapakid = t2.datapakid AND t1.record = t2.record'
     k_table_prefix1 = "SELECT substr(mkey,1,23) as reqtsn, substr(mkey,24,6) as datapakid, cast(substr(mkey,30,8) as integer) as record"
     k_table_prefix2 = "FROM (SELECT max(reqtsn || datapakid || record) as mkey "
-    srcfile_log_name = 'srcfile.log'
+    srcfile_log_name = 'srcfile'
     bucket_default = 'stg-bi-1'
     database_default = 'db'
     safe_dml_default = False
@@ -99,7 +99,7 @@ class IceLoad:
             resource_list.append(str(item['Key']).partition('/')[2])
         return resource_list
 
-    def __prepare_srcfiles_list(self) -> List[str]:
+    def __prepare_srcfiles_list(self, n: str = '0') -> List[str]:
         """Получение списка файлов для обработки. Итоговый список o_srcfiles
         формируется следующим образом:
         Если на вход поступает непустой список файлов, то он берется за основу.
@@ -113,8 +113,10 @@ class IceLoad:
             List[str]: список имен файлов данных для загрузки
         """
         processed_srcfiles = []
+        suffix = n if n != '0' else ''
+        logfile = f'{self.srcfiles_log}{suffix}.log'
         try:
-            with open(self.srcfiles_log, 'r') as f:
+            with open(logfile, 'r') as f:
                 lines = f.readlines()
             processed_srcfiles = [line.strip() for line in lines]
         except Exception as e:
@@ -142,21 +144,24 @@ class IceLoad:
         позволяет загружать файл несколько раз.
 
         Args:
-            action(Str): тип действия: a - append file, p - clear log
+            action(Str): тип действия: aX - append file, pX - clear log
+            X - обязательный номер таблицы (0,1,2 или 5)
             srcfile (str): имя файла для сохранения в журнале файлов загрузки 
         """
-        if (action == 'a') and (not self.loadmanytimes):
+        suffix = action[1] if action[1] != '0' else ''
+        logfile = f'{self.srcfiles_log}{suffix}.log'
+        if (action[0] == 'a') and (not self.loadmanytimes):
             try:
-                with open(self.srcfiles_log, 'a') as f:
+                with open(logfile, 'a') as f:
                     f.write(srcfile + '\n')
                 self.__print(f'Файл {srcfile} записан в лог')
             except Exception as e:
                 self.__print(f'Action {action}. Ошибка {srcfile} : {e}')
-        elif action == 'p':
+        elif action[0] == 'p':
             try:
-                with open(self.srcfiles_log, 'w') as f:
+                with open(logfile, 'w') as f:
                     f.close()
-                self.__print(f'Лог {self.srcfiles_log} очищен')
+                self.__print(f'Лог {logfile} очищен')
             except Exception as e:
                 self.__print(f'Action {action}. Ошибка {srcfile} : {e}')
     
@@ -267,13 +272,13 @@ class IceLoad:
         self.__init_spark()
         self.spark.sql("use {0}".format(self.sparkdb)).show(10)
         for item in self.actions:
-            if item == 'drop':
+            if (item == 'drop') or (item == 'drop0'):
                 self.__action_drop()
             elif item == 'drop1':
                 self.__action_drop('1')
             elif item == 'drop2':
                 self.__action_drop('2')
-            elif item == 'delete':
+            elif (item == 'delete') or (item == 'delete0'):
                 self.__action_delete()
             elif item == 'delete1':
                 self.__action_delete('1')
@@ -281,7 +286,7 @@ class IceLoad:
                 self.__action_delete('2')
             elif item == 'delete5':
                 self.__action_delete('5')
-            elif item == 'create':
+            elif (item == 'create') or (item == 'create0'):
                 self.__action_create()
             elif item == 'create1':
                 self.__action_create('1')
@@ -293,12 +298,16 @@ class IceLoad:
                 self.__action_dropcreate('1')
             elif item == 'dropcreate2':
                 self.__action_dropcreate('2')
+            elif item == 'dropcreate5':
+                self.__action_dropcreate('5')
             elif (item == 'insert') or (item == 'insert0'):
                 self.__action_insert()
             elif item == 'insert1':
                 self.__action_insert('1')
             elif item == 'insert2':
                 self.__action_insert('2')
+            elif item == 'insert5':
+                self.__action_insert('5')
             elif item == 'recreate_attr':
                 self.__action_recreate_attr()
             elif item == 'merge12':
@@ -327,7 +336,7 @@ class IceLoad:
             tname = '{0}{1}'.format(self.tbl_name, n)
         query = '''DROP TABLE IF EXISTS {1}.{0} PURGE'''.format(tname, self.sparkdb)
         self.spark.sql(query).show(1, truncate=False)
-        self.__srcfile_processed('p', '')
+        self.__srcfile_processed(f'p{n}', '')
         self.__print('{0} DROP TABLE {2}.{1}'.format(self.__get_time(), tname, self.sparkdb))
 
     def __action_create(self, n: str = '0'):
@@ -347,7 +356,7 @@ class IceLoad:
             tcreate_table = self.create_table
         if n == '1':
             tname = '{0}{1}'.format(self.tbl_name, n)
-            tcreate_table = '{0}, recordmode STRING, {1}'.format(self.request_fields_create, self.create_table)
+            tcreate_table = '{0}, {1}'.format(self.request_fields_create, self.create_table)
         if n in ['2', '5']:
             tname = '{0}{1}'.format(self.tbl_name, n)
             tcreate_table = self.create_table
@@ -359,7 +368,7 @@ class IceLoad:
             query = '''ALTER TABLE {1}.{0} SET IDENTIFIER FIELDS {2}'''\
                 .format(tname, self.sparkdb, self.key_fields)
             self.spark.sql(query).show(1, truncate=False)
-        self.__srcfile_processed('p', '')
+        self.__srcfile_processed(f'p{n}', '')
         self.__print('{0} CREATE TABLE {2}.{1}'.format(self.__get_time(), tname, self.sparkdb))      
 
     def __action_dropcreate(self, n: str = '0'):
@@ -402,13 +411,16 @@ class IceLoad:
         if n in ['0']:
             tname = self.tbl_name
             tinsert_table = self.insert_table
+            tinsert_values = self.insert_values
         elif n == '1':
             tname = '{0}{1}'.format(self.tbl_name, n)
-            tinsert_table = '{0}, recordmode, {1}'.format(self.request_fields, self.insert_table)
+            tinsert_table = '{0}, {1}'.format(self.request_fields, self.insert_table)
+            tinsert_values = f'reqtsn, datapakid, cast(record as INT), {self.insert_values}'       
         elif n in ['2', '5']:
             tname = '{0}{1}'.format(self.tbl_name, n)
             tinsert_table = self.insert_table
-        self.srcfiles = self.__prepare_srcfiles_list()
+            tinsert_values = self.insert_values
+        self.srcfiles = self.__prepare_srcfiles_list(n)
         for li in self.srcfiles:
             if self.srcformat == 'csv':
                 delimiter = self.md_params[self.md].get('delimiter', ',')
@@ -419,13 +431,16 @@ class IceLoad:
                 df = self.spark.read.parquet(li)
             elif self.srcformat == 's3-orc':
                 df = self.spark.read.orc(f's3a://{self.srcbucket}/{self.md}/{li}')
-            df.createOrReplaceTempView(self.srctbl_name)
             
+            suffix = n if n != '0' else ''
+            tsrctbl_name = f'{self.srctbl_name}{suffix}'
+            df.createOrReplaceTempView(tsrctbl_name)
+
             if not self.safe_dml:  # вставка в основную ветку main
                 query = '''INSERT INTO {1}.{0} ({2}) (
                             SELECT {3} FROM {4} WHERE {5} {6})'''\
                         .format(tname, self.sparkdb, tinsert_table,
-                                self.insert_values, self.srctbl_name, self.insert_where,
+                                tinsert_values, tsrctbl_name, self.insert_where,
                                 '' if self.insert_order == '' else ' ORDER BY {0}'.format(self.insert_order))
                 self.spark.sql(query).show(10, truncate=False)
             else:  # вставка в отдельную ветку и merge c основной веткой в случае успеха. И ничего в случае неуспеха проверки
@@ -435,7 +450,7 @@ class IceLoad:
                 query = '''INSERT INTO {1}.{0}.branch_{7} ({2}) (
                             SELECT {3} FROM {4} WHERE {5} {6})'''\
                         .format(tname, self.sparkdb, tinsert_table,
-                                self.insert_values, self.srctbl_name, self.insert_where,
+                                tinsert_values, tsrctbl_name, self.insert_where,
                                 '' if self.insert_order == '' else ' ORDER BY {0}'.format(self.insert_order), branch)
                 self.spark.sql(query).show(10, truncate=False)
                 checks = self.__action_checks()
@@ -445,10 +460,10 @@ class IceLoad:
                     self.__print('{0} Fast_forward {2}.{1}: main->{3}'.format(self.__get_time(), tname, self.sparkdb, branch))  
                 else:
                     query = "ALTER TABLE {0}.{1} DROP BRANCH `{2}`".format(self.sparkdb, tname, branch)
-                    self.__print('{0} Drop brunch {3} from {2}.{1}'.format(self.__get_time(), tname, self.sparkdb, branch))  
+                    self.__print('{0} Drop branch {3} from {2}.{1}'.format(self.__get_time(), tname, self.sparkdb, branch))  
                 self.spark.sql(query).show(30, truncate=False)
 
-            self.__srcfile_processed('a', li)
+            self.__srcfile_processed(f'a{n}', li)
             self.__print('{0} INSERT INTO {2}.{1}'.format(self.__get_time(), tname, self.sparkdb))     
             self.__post_processing(tname)
 

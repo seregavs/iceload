@@ -21,11 +21,11 @@ conf_2g_ice_warehouse2 = (SparkConf()
             .set(f"spark.sql.catalog.{spark_catalog}.write.metadata.previous-versions-max", "5")
         )
 
- 
-YC_ACCESS_KEY_ID = ''
-YC_SECRET_ACCESS_KEY = ''
-YC_REGION_NAME = 'ru-central1'
-YC_ENDPOINT_URL = 'https://storage.yandexcloud.net'
+
+YC_ACCESS_KEY_ID = os.environ.get("YC_ACCESS_KEY_ID") if os.environ.get("YC_ACCESS_KEY_ID") else ''
+YC_SECRET_ACCESS_KEY = os.environ.get("YC_SECRET_ACCESS_KEY") if os.environ.get("YC_SECRET_ACCESS_KEY") else ''
+YC_REGION_NAME = os.environ.get("YC_REGION_NAME") if os.environ.get("YC_REGION_NAME") else 'ru-central1'
+YC_ENDPOINT_URL = os.environ.get("YC_ENDPOINT_URL") if os.environ.get("YC_ENDPOINT_URL") else 'https://storage.yandexcloud.net'
 
 
 DB_HOST = os.environ.get("PG_HOST") if os.environ.get("PG_HOST") else 'localhost'

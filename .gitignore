@@ -11,6 +11,7 @@ __pycache__/
 
 # others
 keys.txt
+autoexec.sh
 
 # C extensions
 *.so
