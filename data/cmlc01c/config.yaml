@@ -58,3 +58,7 @@ cmlc01c:
     CAST(cptstrepv AS DECIMAL(17,2)),
     CAST(altstispv AS DECIMAL(17,2)),
     CAST(altstrepv AS DECIMAL(17,2))
+  merge12: |
+    pass
+  merge15: |
+    pass

@@ -41,6 +41,10 @@ class IceLoad:
         self.srcfiles = srcfiles
         self.actions = actions
         self.metadata = metadata
+
+        # Реализовать
+        self.__reads3_metadata(metadata, self.icebergtbl_props)
+
         with open(metadata, "r") as f1:
             self.md_params = yaml.safe_load(f1)
         
@@ -74,6 +78,9 @@ class IceLoad:
         self.loadmanytimes = self.md_params[md].get('loadmanytimes', '')
         self.__init_params()
     
+    def __reads3_metadata(self, metadata: str, icebergtbl_props: str):
+        pass
+
     def __get_srcfiles_list_from_s3(self) -> List[str]:
         """Возвращает список файлов из заданной папки в заданном бакете s3
             Пример:
