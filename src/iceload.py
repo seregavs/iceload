@@ -582,6 +582,8 @@ class IceLoad:
                     (SELECT {2} FROM {0}.dwh_t_{1}1 \
                     UNION ALL SELECT {2} FROM {0}.dwh_t_{1}2)".format(self.sparkdb, self.md,
                     self.insert_table)
+            if v == '125':
+                query = ''
             if query:
                 # self.spark.sql(query).show(10)
                 print(query)

@@ -21,14 +21,10 @@ if __name__ == "__main__":
     # il1 = IceLoad("cmlc099", [], ["views"], "data/cmlc0993/config.yaml")
     # il1 = IceLoad("cmlc099", [], ["dropcreate2", "merge12"],
     #               "data/cmlc0993/config.yaml")
-    # il1 = IceLoad("cmlc07p33", [], ["dropcreate1", "dropcreate2", "insert1","merge12"],
-    #               "data/cmlc07p331/config.yaml")
-    # il1 = IceLoad("cmlc01c1", [], ["dropcreate", "insert"],
-    #               "/home/alpine/iceload/data/cmlc01c1/config.yaml")
-    # il1 = IceLoad("cmlc01c2", [], ["dropcreate", "insert"],
-    #               "/home/alpine/iceload/data/cmlc01c2/config.yaml")
-    il1 = IceLoad("cmlc01c", ["/home/alpine/iceload/data/cmlc01c/t1/cmlc01c1_20250110.orc"], 
-                  ["dropcreate1", "insert1"], "/home/alpine/iceload/data/cmlc01c/config.yaml")
+    il1 = IceLoad("cmlc07p33", [], ["dropcreate1", "dropcreate2", "insert1", "merge12"],
+                  "/home/alpine/iceload/data/cmlc07p33/config.yaml")
+    # il1 = IceLoad("cmlc01c", ["/home/alpine/iceload/data/cmlc01c/t1/cmlc01c1_20250110.orc"], 
+    #               ["dropcreate1", "insert1"], "/home/alpine/iceload/data/cmlc01c/config.yaml")
     # il1 = IceLoad("cmlc01c", ["/home/alpine/iceload/data/cmlc01c/t2/cmlc01c2_20250110.orc"], 
     #               ["dropcreate2", "insert2"], "/home/alpine/iceload/data/cmlc01c/config.yaml")
     # il1 = IceLoad("cmlc01c", ["/home/alpine/iceload/data/cmlc01c/t5/cmlc01c5_20250110.orc"], 
