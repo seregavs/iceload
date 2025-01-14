@@ -8,7 +8,7 @@ cmlc07p33:
   dstype: adso-cube
   table_name: dwh_t_cmlc07p33
   srcfiles: |
-    {"f": "/home/alpine/iceload/data/cmlc07p331/cmlc07p331_20241225.parquet"}
+    {"f": "/home/alpine/iceload/data/cmlc07p33/t1/cmlc07p331_20241225.parquet"}
   src_table_name: stg_t_cmlc07p33
   iceberg_tbl_props: iceberg_tbl_props_01
   create_table: |
@@ -58,10 +58,6 @@ cmlc07p33:
     zsgtxt, 
     zicomargn
   insert_values: |
-    reqtsn,
-    datapakid,
-    cast(record as INT),
-    '',
     ifnull(base_uom,chr(0)),
     to_date(calday, 'yyyyMMdd'),
     ifnull(comp_code,chr(0)),

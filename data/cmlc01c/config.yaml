@@ -2,7 +2,7 @@ cmlc01c:
   add_identifier: False
   srcformat: orc
   database: db
-  dstype: adso-std
+  dstype: adso-ncum
   table_name: dwh_t_cmlc01c
   srcfiles: |
     {"f": "/home/alpine/iceload/data/cmlc01c/cmlc01c1_20250110.orc"}
@@ -25,7 +25,7 @@ cmlc01c:
     altstispv DECIMAL(17,2), 
     altstrepv DECIMAL(17,2)
   partition: month(calday)
-  views: 12
+  views: 125
   insert_table: |
     recordmode,
     recordtp, 
