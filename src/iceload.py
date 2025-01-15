@@ -16,7 +16,7 @@ class IceLoad:
         srcfile_log_name - имя файла, в котором сохраняются обработанные файлы данных. Нужно для контроля повторной обработки файлов
         остальные переменные - компоненты SQL-запросов для логики автогенерации SQL
     """
-    icebergtbl_props = "/home/alpine/iceload/src/icebergtbl_props.yaml"
+    icebergtbl_props = "/home/alpine/iceload/src/icebergtbl_props.yaml"  # для локальных хранений настроечных файлов (не в s3)
     request_fields_create = 'reqtsn STRING NOT NULL, datapakid STRING NOT NULL, record INT NOT NULL'
     request_fields_max = 'max(reqtsn || datapakid || to_char(record))'
     request_fields = 'reqtsn, datapakid, record'
@@ -71,10 +71,15 @@ class IceLoad:
         elif self.metadata_source == 's3':
             # пропускаем s3a://
             metadata = metadata.split(self.bucket_default, 1)[1][1:]
-            res = self.s3.get_object(Bucket=self.bucket_default, Key=metadata)
+            try:
+                res = self.s3.get_object(Bucket=self.bucket_default, Key=metadata)
+            except Exception as e:
+                self.__print(f'{e} bucket={self.bucket_default} key={metadata}')
+                quit()
+
             self.md_params = yaml.safe_load(res['Body'].read().decode('utf-8'))
             # bucket + prefix
-            self.srcbucket = self.md_params[md].get('srcbucket', '')
+            self.srcbucket = self.md_params[md].get('srcbucket', self.bucket_default)
             res = self.s3.get_object(Bucket=self.bucket_default, Key=f'0datasource/icebergtbl_props.yaml')
             self.tbl_props_params = yaml.safe_load(res['Body'].read().decode('utf-8'))
 
