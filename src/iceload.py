@@ -83,7 +83,12 @@ class IceLoad:
             self.srcfiles_log = metadata[:metadata.rfind('/') + 1] + self.srcfile_log_name
         else:
             self.srcfiles_log = self.srcfile_log_name
-        # print(self.srcfiles_log)
+
+        # s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
+        # pattern = r"s3a://([^/]+)/(.+)"
+        # match = re.match(pattern, s3path)
+        # if match:
+        #     bucket, self.logfile_s3key = match.group(1), match.group(2)
 
         self.prev_ts = datetime.datetime.now()
         self.start_ts = self.prev_ts
@@ -115,18 +120,18 @@ class IceLoad:
         Returns:
             List[str]: _список файлов
         """
-        s3session = boto3.session.Session(
-            aws_access_key_id=spark_const.YC_ACCESS_KEY_ID,
-            aws_secret_access_key=spark_const.YC_SECRET_ACCESS_KEY,
-            region_name=spark_const.YC_REGION_NAME)
+        # s3session = boto3.session.Session(
+        #     aws_access_key_id=spark_const.YC_ACCESS_KEY_ID,
+        #     aws_secret_access_key=spark_const.YC_SECRET_ACCESS_KEY,
+        #     region_name=spark_const.YC_REGION_NAME)
 
-        s3 = s3session.client(
-            service_name='s3',
-            endpoint_url=spark_const.YC_ENDPOINT_URL)
+        # s3 = s3session.client(
+        #     service_name='s3',
+        #     endpoint_url=spark_const.YC_ENDPOINT_URL)
         # Данные таблиц ADSO сохраняются в отдельных каталогах
         # t1 - 1-я таблица, t2 - вторая таблица
         prefix = f't{n}/{self.md}' if n != '0' else self.md
-        res = s3.list_objects_v2(Bucket=self.srcbucket, Prefix=prefix, MaxKeys=1000)
+        res = self.s3.list_objects_v2(Bucket=self.srcbucket, Prefix=prefix, MaxKeys=1000)
         resource_list = list()
         print(json.dumps(res, indent=2, default=str))
         for item in res['Contents']:
@@ -158,19 +163,19 @@ class IceLoad:
                 self.__print(f'{e}')
                 processed_srcfiles = []
         elif self.metadata_source == 's3':
-            s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
-            pattern = r"s3a://([^/]+)/(.+)"
-            match = re.match(pattern, s3path)
-            if match:
-                bucket, s3key = match.group(1), match.group(2)
-                try:
-                    res = self.s3.get_object(Bucket=bucket, Key=s3key)
-                    content2 = res['Body'].read().decode('utf-8')
-                    processed_srcfiles = str(content2).split('\n')
-                except Exception as e:
-                    self.__print(f'{e}')
-            else:
-                self.__print(f'ошибка получения bucket, key из {s3path}')                
+            # s3path  = f"s3a://{logfile}"
+            # pattern = r"s3a://([^/]+)/(.+)"
+            # match = re.match(pattern, s3path)
+            # if True:
+            #     bucket, s3key = match.group(1), match.group(2)
+            try:
+                res = self.s3.get_object(Bucket=self.srcbucket, Key=logfile)
+                content2 = res['Body'].read().decode('utf-8')
+                processed_srcfiles = str(content2).split('\n')
+            except Exception as e:
+                self.__print(f'{e} bucket={self.srcbucket} key={logfile}')
+            # else:
+            #     self.__print(f'ошибка получения bucket, key из {s3path}')                
 
         if self.srcfiles == []:
             try:
@@ -217,39 +222,39 @@ class IceLoad:
                     self.__print(f'Action {action}. Ошибка {srcfile} : {e}')
         elif self.metadata_source == 's3':
             if (action[0] == 'a') and (not self.loadmanytimes):
-                s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
-                pattern = r"s3a://([^/]+)/(.+)"
-                match = re.match(pattern, s3path)
-                if match:
-                    bucket, s3key = match.group(1), match.group(2)
+                # s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
+                # pattern = r"s3a://([^/]+)/(.+)"
+                # match = re.match(pattern, s3path)
+                # if match:
+                #     bucket, s3key = match.group(1), match.group(2)
+                try:
+                    processed_srcfiles = []
+                    res = self.s3.get_object(Bucket=self.srcbucket, Key=logfile)
+                    content2 = res['Body'].read().decode('utf-8')
+                    processed_srcfiles = str(content2).split('\n')
+                except Exception as e:
+                    self.__print(f'{e} Bucket {self.srcbucket}, Key {logfile}')
+                finally:
+                    processed_srcfiles.append(srcfile)
+                    s3body = '\n'.join(processed_srcfiles)
                     try:
-                        processed_srcfiles = []
-                        res = self.s3.get_object(Bucket=bucket, Key=s3key)
-                        content2 = res['Body'].read().decode('utf-8')
-                        processed_srcfiles = str(content2).split('\n')
+                        self.s3.put_object(Bucket=self.srcbucket, Key=logfile, Body=s3body)
                     except Exception as e:
-                        self.__print(f'{e}')
-                    finally:
-                        processed_srcfiles.append(srcfile)
-                        s3body = '\n'.join(processed_srcfiles)
-                        try:
-                            self.s3.put_object(Bucket=bucket, Key=s3key, Body=s3body)
-                        except Exception as e:
-                            self.__print(f'{e}')
-                else:
-                    self.__print(f'ошибка получения bucket, key из {s3path}')                  
+                        self.__print(f'{e} Bucket {self.srcbucket}, Key {logfile}')
+                # else:
+                #     self.__print(f'ошибка получения bucket, key из {s3path}')                  
             elif action[0] == 'p':
-                s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
-                pattern = r"s3a://([^/]+)/(.+)"
-                match = re.match(pattern, s3path)
-                if match:
-                    bucket, s3key = match.group(1), match.group(2)
-                    forDeletion = [{'Key': s3key}]
-                    try:
-                        res = self.s3.delete_objects(Bucket=bucket, Delete={'Objects': forDeletion})
-                        self.__print(f'Лог {logfile} очищен')
-                    except Exception as e:
-                        self.__print(f'{e}')
+                # s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
+                # pattern = r"s3a://([^/]+)/(.+)"
+                # match = re.match(pattern, s3path)
+                # if match:
+                #     bucket, s3key = match.group(1), match.group(2)
+                forDeletion = [{'Key': logfile}]
+                try:
+                    res = self.s3.delete_objects(Bucket=self.srcbucket, Delete={'Objects': forDeletion})
+                    self.__print(f'Лог {logfile} очищен')
+                except Exception as e:
+                    self.__print(f'{e}, Delete {forDeletion} from bucket {self.srcbucket}')
 
     def __init_params(self):
         """Считывание метаданных загрузки из config.yaml в атрибуты класса
