@@ -1,11 +1,12 @@
 plant:
   indentifier_fields: 'plant'
   srcformat: orc
+  srcbucket: stg-bi-1
   database: db
   table_name: dwh_t_plant
   srcfiles: |
     {"f": "/home/alpine/iceload/data/plant/md_plant.orc"}
-  loadmanytimes: True 
+  loadmanytimes: False 
   src_table_name: stg_t_plant
   iceberg_tbl_props: iceberg_tbl_props_01
   attr_queries: |

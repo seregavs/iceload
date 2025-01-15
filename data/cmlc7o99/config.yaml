@@ -1,13 +1,13 @@
 cmlc7o99:
   key_fields: mat_doc, doc_year, mat_item, stocktype
-  key_fields_create: mat_doc STRING NOT NULL, doc_year STRING NOT NULL, mat_item STRING  NOT NULL, stocktype STRING  NOT NULL
+  key_fields_create: mat_doc STRING NOT NULL, doc_year STRING NOT NULL, mat_item STRING NOT NULL, stocktype STRING  NOT NULL
   add_identifier: False
   srcformat: parquet
   database: db
   dstype: adso-std
   table_name: dwh_t_cmlc7o99
   srcfiles: |
-    {"f": "/home/alpine/iceload/data/cmlc7o99/cmlc70993_20241220.parquet"}
+    {"f": "/home/alpine/iceload/data/cmlc7o99/t1/cmlc70993_20241220.parquet"}
   src_table_name: stg_t_cmlc7o99
   iceberg_tbl_props: iceberg_tbl_props_01
   create_table:
