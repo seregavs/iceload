@@ -1,9 +1,11 @@
 from pyspark.sql import SparkSession
 import spark_const
 import datetime
+import os
 import yaml
 import json
 import boto3
+import re
 from pydantic import TypeAdapter
 from typing import List
 
@@ -25,6 +27,7 @@ class IceLoad:
     bucket_default = 'stg-bi-1'
     database_default = 'db'
     safe_dml_default = False
+    metadata_source = 'local'  # local | s3
     # log_time_indent = ' 0000s. '
 
     def __init__(self, md: str, srcfiles: list,
@@ -37,25 +40,50 @@ class IceLoad:
             actions (list): Список действий с данными
             metadata (str, optional): Относительный путь к файлу с метаданными - описание загрузки'.
         """
+        # Настройки для подключения к S3
+        self.YC_ACCESS_KEY_ID = os.environ.get("YC_ACCESS_KEY_ID") if os.environ.get("YC_ACCESS_KEY_ID") else ''
+        self.YC_SECRET_ACCESS_KEY = os.environ.get("YC_SECRET_ACCESS_KEY") if os.environ.get("YC_SECRET_ACCESS_KEY") else ''
+        self.YC_REGION_NAME = os.environ.get("YC_REGION_NAME") if os.environ.get("YC_REGION_NAME") else ''
+        self.YC_ENDPOINT_URL = os.environ.get("YC_ENDPOINT_URL") if os.environ.get("YC_ENDPOINT_URL") else ''
+
+        self.s3_session = boto3.session.Session(
+            aws_access_key_id=self.YC_ACCESS_KEY_ID,
+            aws_secret_access_key=self.YC_SECRET_ACCESS_KEY,
+            region_name=self.YC_REGION_NAME)
+
+        self.s3 = self.s3_session.client(
+            service_name='s3',
+            endpoint_url=self.YC_ENDPOINT_URL
+        )
+        # Основные настройки
         self.md = md
         self.srcfiles = srcfiles
         self.actions = actions
         self.metadata = metadata
 
-        # Реализовать
-        self.__reads3_metadata(metadata, self.icebergtbl_props)
+        self.metadata_source = 's3' if self.metadata[0:3] == 's3a' else 'local'
+        if self.metadata_source == 'local':
+            with open(metadata, "r") as f1:
+                self.md_params = yaml.safe_load(f1)
+            with open(self.icebergtbl_props, "r") as f2:
+                self.tbl_props_params = yaml.safe_load(f2)
 
-        with open(metadata, "r") as f1:
-            self.md_params = yaml.safe_load(f1)
-        
+        elif self.metadata_source == 's3':
+            # пропускаем s3a://
+            metadata = metadata.split(self.bucket_default, 1)[1][1:]
+            res = self.s3.get_object(Bucket=self.bucket_default, Key=metadata)
+            self.md_params = yaml.safe_load(res['Body'].read().decode('utf-8'))
+            # bucket + prefix
+            self.srcbucket = self.md_params[md].get('srcbucket', '')
+            res = self.s3.get_object(Bucket=self.bucket_default, Key=f'0datasource/icebergtbl_props.yaml')
+            self.tbl_props_params = yaml.safe_load(res['Body'].read().decode('utf-8'))
+
+        # Определяем имя лог-файла со списком обработанных файлов
         if metadata.rfind('/') != -1:
             self.srcfiles_log = metadata[:metadata.rfind('/') + 1] + self.srcfile_log_name
         else:
             self.srcfiles_log = self.srcfile_log_name
-        print(self.srcfiles_log)
-
-        with open(self.icebergtbl_props, "r") as f2:
-            self.tbl_props_params = yaml.safe_load(f2)
+        # print(self.srcfiles_log)
 
         self.prev_ts = datetime.datetime.now()
         self.start_ts = self.prev_ts
@@ -74,14 +102,10 @@ class IceLoad:
         self.database = self.md_params[md].get('database', self.database_default)
         self.sparkdb = "{0}.{1}".format(spark_const.spark_catalog, self.database)
         self.srcformat = self.md_params[md]['srcformat']
-        self.srcbucket = self.md_params[md].get('srcbucket', self.bucket_default)
         self.loadmanytimes = self.md_params[md].get('loadmanytimes', '')
         self.__init_params()
-    
-    def __reads3_metadata(self, metadata: str, icebergtbl_props: str):
-        pass
 
-    def __get_srcfiles_list_from_s3(self) -> List[str]:
+    def __get_srcfiles_list_from_s3(self, n: str) -> List[str]:
         """Возвращает список файлов из заданной папки в заданном бакете s3
             Пример:
              cmlc07p327/000000_0
@@ -99,7 +123,10 @@ class IceLoad:
         s3 = s3session.client(
             service_name='s3',
             endpoint_url=spark_const.YC_ENDPOINT_URL)
-        res = s3.list_objects_v2(Bucket=self.srcbucket, Prefix=self.md, MaxKeys=1000)
+        # Данные таблиц ADSO сохраняются в отдельных каталогах
+        # t1 - 1-я таблица, t2 - вторая таблица
+        prefix = f't{n}/{self.md}' if n != '0' else self.md
+        res = s3.list_objects_v2(Bucket=self.srcbucket, Prefix=prefix, MaxKeys=1000)
         resource_list = list()
         print(json.dumps(res, indent=2, default=str))
         for item in res['Contents']:
@@ -122,13 +149,28 @@ class IceLoad:
         processed_srcfiles = []
         suffix = n if n != '0' else ''
         logfile = f'{self.srcfiles_log}{suffix}.log'
-        try:
-            with open(logfile, 'r') as f:
-                lines = f.readlines()
-            processed_srcfiles = [line.strip() for line in lines]
-        except Exception as e:
-            self.__print(f'{e}')
-            processed_srcfiles = []
+        if self.metadata_source == 'local':
+            try:
+                with open(logfile, 'r') as f:
+                    lines = f.readlines()
+                processed_srcfiles = [line.strip() for line in lines]
+            except Exception as e:
+                self.__print(f'{e}')
+                processed_srcfiles = []
+        elif self.metadata_source == 's3':
+            s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
+            pattern = r"s3a://([^/]+)/(.+)"
+            match = re.match(pattern, s3path)
+            if match:
+                bucket, s3key = match.group(1), match.group(2)
+                try:
+                    res = self.s3.get_object(Bucket=bucket, Key=s3key)
+                    content2 = res['Body'].read().decode('utf-8')
+                    processed_srcfiles = str(content2).split('\n')
+                except Exception as e:
+                    self.__print(f'{e}')
+            else:
+                self.__print(f'ошибка получения bucket, key из {s3path}')                
 
         if self.srcfiles == []:
             try:
@@ -138,8 +180,9 @@ class IceLoad:
                 print('{0} {1}'.format(self.__get_time(), e))
                 o_srcfiles = list()
 # Если в config.yaml нет файлов И указано имя бакета, то грузим список файлов из бакета
-            if (not o_srcfiles) and (self.srcbucket):
-                o_srcfiles = self.__get_srcfiles_list_from_s3()
+            else:
+                if (not o_srcfiles) and (self.srcbucket):
+                    o_srcfiles = self.__get_srcfiles_list_from_s3(n)
         else:
             o_srcfiles = self.srcfiles
         o_srcfiles = [item for item in o_srcfiles if item not in processed_srcfiles]
@@ -157,21 +200,57 @@ class IceLoad:
         """
         suffix = action[1] if action[1] != '0' else ''
         logfile = f'{self.srcfiles_log}{suffix}.log'
-        if (action[0] == 'a') and (not self.loadmanytimes):
-            try:
-                with open(logfile, 'a') as f:
-                    f.write(srcfile + '\n')
-                self.__print(f'Файл {srcfile} записан в лог')
-            except Exception as e:
-                self.__print(f'Action {action}. Ошибка {srcfile} : {e}')
-        elif action[0] == 'p':
-            try:
-                with open(logfile, 'w') as f:
-                    f.close()
-                self.__print(f'Лог {logfile} очищен')
-            except Exception as e:
-                self.__print(f'Action {action}. Ошибка {srcfile} : {e}')
-    
+        if self.metadata_source == 'local':
+            if (action[0] == 'a') and (not self.loadmanytimes):
+                try:
+                    with open(logfile, 'a') as f:
+                        f.write(srcfile + '\n')
+                    self.__print(f'Файл {srcfile} записан в лог')
+                except Exception as e:
+                    self.__print(f'Action {action}. Ошибка {srcfile} : {e}')
+            elif action[0] == 'p':
+                try:
+                    with open(logfile, 'w') as f:
+                        f.close()
+                    self.__print(f'Лог {logfile} очищен')
+                except Exception as e:
+                    self.__print(f'Action {action}. Ошибка {srcfile} : {e}')
+        elif self.metadata_source == 's3':
+            if (action[0] == 'a') and (not self.loadmanytimes):
+                s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
+                pattern = r"s3a://([^/]+)/(.+)"
+                match = re.match(pattern, s3path)
+                if match:
+                    bucket, s3key = match.group(1), match.group(2)
+                    try:
+                        processed_srcfiles = []
+                        res = self.s3.get_object(Bucket=bucket, Key=s3key)
+                        content2 = res['Body'].read().decode('utf-8')
+                        processed_srcfiles = str(content2).split('\n')
+                    except Exception as e:
+                        self.__print(f'{e}')
+                    finally:
+                        processed_srcfiles.append(srcfile)
+                        s3body = '\n'.join(processed_srcfiles)
+                        try:
+                            self.s3.put_object(Bucket=bucket, Key=s3key, Body=s3body)
+                        except Exception as e:
+                            self.__print(f'{e}')
+                else:
+                    self.__print(f'ошибка получения bucket, key из {s3path}')                  
+            elif action[0] == 'p':
+                s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
+                pattern = r"s3a://([^/]+)/(.+)"
+                match = re.match(pattern, s3path)
+                if match:
+                    bucket, s3key = match.group(1), match.group(2)
+                    forDeletion = [{'Key': s3key}]
+                    try:
+                        res = self.s3.delete_objects(Bucket=bucket, Delete={'Objects': forDeletion})
+                        self.__print(f'Лог {logfile} очищен')
+                    except Exception as e:
+                        self.__print(f'{e}')
+
     def __init_params(self):
         """Считывание метаданных загрузки из config.yaml в атрибуты класса
         """
@@ -388,6 +467,12 @@ class IceLoad:
         self.__action_create(n)
 
     def __action_delete(self, n: str = '0'):
+        """Удаление данных (командой DELETE) из заданной таблицы n
+        необходимо выполнять удаление из таблицы 1 данных, которые были успешно
+        смерджены в таблицу 2 или 5 (для некумулятивных ADSO)
+        Args:
+            n (str, optional): номер таблицы. Defaults to '0'.
+        """
         tname = ''
         if n in ['0']:
             tname = self.tbl_name
@@ -536,7 +621,7 @@ class IceLoad:
                         {2}, {3} FROM {1}.{4} GROUP BY {2}) AS source ON {5}'''\
                 .format(target_table, self.sparkdb, self.key_fields, self.sum_keyfigures,
                         source_table, self.merge)
-            print(query)
+            # print(query)
             self.spark.sql(query).show(2)
             self.__action_delete("1")  # как и при активации ADSO - удаляем
         elif (self.dstype == 'adso-nc') and (n == '12'):
