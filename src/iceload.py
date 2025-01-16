@@ -5,7 +5,7 @@ import os
 import yaml
 import json
 import boto3
-import re
+# import re
 from pydantic import TypeAdapter
 from typing import List
 
@@ -25,6 +25,7 @@ class IceLoad:
     k_table_prefix2 = "FROM (SELECT max(reqtsn || datapakid || record) as mkey "
     srcfile_log_name = 'srcfile'
     bucket_default = 'stg-bi-1'
+    srcbucket = ''
     database_default = 'db'
     safe_dml_default = False
     metadata_source = 'local'  # local | s3
@@ -278,6 +279,7 @@ class IceLoad:
         self.insert_table = self.md_params[self.md].get('insert_table', list())
         self.insert_values = self.md_params[self.md].get('insert_values', list())
         self.merge = self.md_params[self.md].get('merge', list())
+        self.merge15 = self.md_params[self.md].get('merge15', list())
         self.insert_where = self.md_params[self.md].get('insert_where', '(1=1)')
         self.insert_order = self.md_params[self.md].get('insert_order', '')
         self.views = self.md_params[self.md].get('views', '')
@@ -602,7 +604,9 @@ class IceLoad:
         для dstype=adso-nc метод находится в статусе "доработка"
 
         Args:
-            n (str, optional): номера таблиц (откуда->куда), соотв. таблице в ADSO (1,2 или 5). Defaults to '0'.
+            n (str, optional): номера таблиц (откуда->куда), соотв. таблице в ADSO (1,2).
+            Defaults to '0'.
+            Если adso-ncum, то внутри merge 12 добавляется merge 15
         """
         target_table = '{0}{1}'.format(self.tbl_name, n[1])
         source_table = '{0}{1}'.format(self.tbl_name, n[0])
@@ -625,17 +629,28 @@ class IceLoad:
                 .format(target_table, self.sparkdb, source_table,
                         self.merge, self.md, self.request_fields_join)
             self.spark.sql(query).show(2)
-            self.__action_delete("1")  # как и при активации ADSO - удаляем
-        elif (self.dstype == 'adso-cube') and (n == '12'):
+            self.__print('{0} MERGE{3} INTO {2}.{1}'.format(self.__get_time(), target_table, self.sparkdb, n))
+            self.__action_delete("1")  # как и при активации ADSO - удаляем уже обработанные данные
+            self.__post_processing(target_table)
+        elif (self.dstype in ['adso-cube', 'adso-ncum']) and (n == '12'):
             query = '''MERGE INTO {1}.{0} AS target USING (SELECT
                         {2}, {3} FROM {1}.{4} GROUP BY {2}) AS source ON {5}'''\
                 .format(target_table, self.sparkdb, self.key_fields, self.sum_keyfigures,
                         source_table, self.merge)
             # print(query)
             self.spark.sql(query).show(2)
+            self.__print('{0} MERGE {3} INTO {2}.{1}'.format(self.__get_time(), target_table, self.sparkdb, n))
+            self.__post_processing(target_table)
+            if self.dstype == 'adso-ncum':
+                target_table5 = '{0}{1}'.format(self.tbl_name, '5')
+                query = '''MERGE INTO {1}.{0} AS target USING (SELECT
+                            {2}, {3} FROM {1}.{4} GROUP BY {2}) AS source ON {5}'''\
+                    .format(target_table5, self.sparkdb, self.key_fields, self.sum_keyfigures,
+                            source_table, self.merge15)
+                self.spark.sql(query).show(2)
+                self.__print('{0} MERGE {3} INTO {2}.{1}'.format(self.__get_time(), target_table5, self.sparkdb, n))
+                self.__post_processing(target_table5)              
             self.__action_delete("1")  # как и при активации ADSO - удаляем
-        elif (self.dstype == 'adso-nc') and (n == '12'):
-            pass
         else:
             pass
 
@@ -666,7 +681,6 @@ class IceLoad:
     def __action_views(self):
         """Действие: создание ракурсов данных. Перечень ракурсов закодирован в параметре views в config.yaml
         12 - union для 2-х таблиц 1 и 2
-        
         Метод находится в статусе "доработка". 
         """
         views_lst = str(self.views).split(',')
