@@ -5,7 +5,7 @@ cmlc01c:
   dstype: adso-ncum
   table_name: dwh_t_cmlc01c
   key_fields: CALDAY, BASE_UOM, LOC_CURRCY, MATERIAL, PLANT, STOR_LOC, VALSPECST
-  sum_keyfigures: sum(src.altstrepv) as altstrepv, sum(src.altstispv) as altstispv, sum(src.cptstrepv) as cptstrepv, sum(src.cptstispv) as cptstispv, sum(src.cptstrebu) as cptstrebu, sum(src.cptstisbu) as cptstisbu
+  sum_keyfigures: sum(altstrepv) as altstrepv, sum(altstispv) as altstispv, sum(cptstrepv) as cptstrepv, sum(cptstispv) as cptstispv, sum(cptstrebu) as cptstrebu, sum(cptstisbu) as cptstisbu
   srcfiles: |
     {"f": "/home/alpine/iceload/data/cmlc01c/t1/cmlc01c1_20250110.orc"}
   src_table_name: stg_t_cmlc01c
@@ -79,7 +79,21 @@ cmlc01c:
       INSERT (target.CALDAY, target.BASE_UOM, target.LOC_CURRCY, target.MATERIAL, target.PLANT
         ,target.STOR_LOC, target.VALSPECST, target.RECORDTP
         ,target.ALTSTREPV, target.ALTSTISPV, target.CPTSTREPV, target.CPTSTISPV, target.CPTSTREBU, target.CPTSTISBU)
-        VALUES (source.CALDAY, source.BASE_UOM, source.LOC_CURRCY, source.MATERIAL, source.PLANT, source.STOR_LOC, src.VALSPECST, '2'
+        VALUES (source.CALDAY, source.BASE_UOM, source.LOC_CURRCY, source.MATERIAL, source.PLANT, source.STOR_LOC, source.VALSPECST, '2'
          ,source.ALTSTREPV, source.ALTSTISPV, source.CPTSTREPV, source.CPTSTISPV, source.CPTSTREBU, source.CPTSTISBU);
   merge15: |
-    pass
+    source.BASE_UOM = target.BASE_UOM
+      AND source.LOC_CURRCY = target.LOC_CURRCY
+      AND source.MATERIAL = target.MATERIAL
+      AND source.PLANT = target.PLANT
+      AND source.STOR_LOC = target.STOR_LOC
+      AND source.VALSPECST = target.VALSPECST
+    WHEN MATCHED THEN
+      UPDATE SET ALTSTREPV = target.ALTSTREPV + ( source.ALTSTREPV - source.ALTSTISPV )
+            ,CPTSTREBU = target.CPTSTREBU + ( source.CPTSTREBU - source.CPTSTISBU )       
+            ,CPTSTREPV = target.CPTSTREPV + ( source.CPTSTREPV - source.CPTSTISPV ) 
+    WHEN NOT MATCHED THEN
+      INSERT (target.CALDAY, target.BASE_UOM, target.LOC_CURRCY, target.MATERIAL, target.PLANT, target.STOR_LOC, target.VALSPECST, target.RECORDTP
+         ,target.ALTSTREPV, target.ALTSTISPV, target.CPTSTREPV, target.CPTSTISPV, target.CPTSTREBU, target.CPTSTISBU)
+      VALUES (source.CALDAY, source.BASE_UOM, source.LOC_CURRCY, source. MATERIAL, source.PLANT, source.STOR_LOC, source.VALSPECST, '1'
+         , source.ALTSTREPV, source.ALTSTISPV, source.CPTSTREPV, source.CPTSTISPV, source.CPTSTREBU, source.CPTSTISBU);

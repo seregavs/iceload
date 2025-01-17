@@ -211,11 +211,6 @@ class IceLoad:
                     self.__print(f'Action {action}. Ошибка {srcfile} : {e}')
         elif self.metadata_source == 's3':
             if (action[0] == 'a') and (not self.loadmanytimes):
-                # s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
-                # pattern = r"s3a://([^/]+)/(.+)"
-                # match = re.match(pattern, s3path)
-                # if match:
-                #     bucket, s3key = match.group(1), match.group(2)
                 try:
                     processed_srcfiles = []
                     res = self.s3.get_object(Bucket=self.srcbucket, Key=logfile)
@@ -261,7 +256,6 @@ class IceLoad:
         self.views = self.md_params[self.md].get('views', '')
         self.safe_dml = TypeAdapter(bool).validate_python(self.md_params[self.md].get('safe_dml', self.safe_dml_default))
         self.add_identifier = self.md_params[self.md].get('add_identifier', '')
-        self.__print_init_params()
 
     def __print(self, msg: str):
         """Метод-заглушка для сохранения журнала обработки. 
@@ -343,6 +337,7 @@ class IceLoad:
         """Последовательный запуск (в цикле) определенных для сессии действий.
         Также, выполняется установка каталог.бд по умолчанию для всех SQL-команд
         """
+        self.__print_init_params()
         self.__init_spark()
         self.spark.sql("use {0}".format(self.sparkdb)).show(10)
         for item in self.actions:
@@ -611,16 +606,18 @@ class IceLoad:
                         {2}, {3} FROM {1}.{4} GROUP BY {2}) AS source ON {5}'''\
                 .format(target_table, self.sparkdb, self.key_fields, self.sum_keyfigures,
                         source_table, self.merge)
-            # print(query)
+            print(query)
             self.spark.sql(query).show(2)
             self.__print('{0} MERGE {3} INTO {2}.{1}'.format(self.__get_time(), target_table, self.sparkdb, n))
             self.__post_processing(target_table)
             if self.dstype == 'adso-ncum':
                 target_table5 = '{0}{1}'.format(self.tbl_name, '5')
-                query = '''MERGE INTO {1}.{0} AS target USING (SELECT
+                key_fields5 = self.key_fields.upper().replace("CALDAY,", "")
+                query = '''MERGE INTO {1}.{0} AS target USING (SELECT MIN(calday) as CALDAY, 
                             {2}, {3} FROM {1}.{4} GROUP BY {2}) AS source ON {5}'''\
-                    .format(target_table5, self.sparkdb, self.key_fields, self.sum_keyfigures,
+                    .format(target_table5, self.sparkdb, key_fields5, self.sum_keyfigures,
                             source_table, self.merge15)
+                print(query)
                 self.spark.sql(query).show(2)
                 self.__print('{0} MERGE {3} INTO {2}.{1}'.format(self.__get_time(), target_table5, self.sparkdb, n))
                 self.__post_processing(target_table5)
