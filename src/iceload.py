@@ -5,7 +5,7 @@ import os
 import yaml
 import json
 import boto3
-import re
+# import re
 from pydantic import TypeAdapter
 from typing import List
 
@@ -25,6 +25,7 @@ class IceLoad:
     k_table_prefix2 = "FROM (SELECT max(reqtsn || datapakid || record) as mkey "
     srcfile_log_name = 'srcfile'
     bucket_default = 'stg-bi-1'
+    srcbucket = ''
     database_default = 'db'
     safe_dml_default = False
     metadata_source = 'local'  # local | s3
@@ -125,16 +126,6 @@ class IceLoad:
         Returns:
             List[str]: _список файлов
         """
-        # s3session = boto3.session.Session(
-        #     aws_access_key_id=spark_const.YC_ACCESS_KEY_ID,
-        #     aws_secret_access_key=spark_const.YC_SECRET_ACCESS_KEY,
-        #     region_name=spark_const.YC_REGION_NAME)
-
-        # s3 = s3session.client(
-        #     service_name='s3',
-        #     endpoint_url=spark_const.YC_ENDPOINT_URL)
-        # Данные таблиц ADSO сохраняются в отдельных каталогах
-        # t1 - 1-я таблица, t2 - вторая таблица
         prefix = f't{n}/{self.md}' if n != '0' else self.md
         res = self.s3.list_objects_v2(Bucket=self.srcbucket, Prefix=prefix, MaxKeys=1000)
         resource_list = list()
@@ -168,19 +159,12 @@ class IceLoad:
                 self.__print(f'{e}')
                 processed_srcfiles = []
         elif self.metadata_source == 's3':
-            # s3path  = f"s3a://{logfile}"
-            # pattern = r"s3a://([^/]+)/(.+)"
-            # match = re.match(pattern, s3path)
-            # if True:
-            #     bucket, s3key = match.group(1), match.group(2)
             try:
                 res = self.s3.get_object(Bucket=self.srcbucket, Key=logfile)
                 content2 = res['Body'].read().decode('utf-8')
                 processed_srcfiles = str(content2).split('\n')
             except Exception as e:
-                self.__print(f'{e} bucket={self.srcbucket} key={logfile}')
-            # else:
-            #     self.__print(f'ошибка получения bucket, key из {s3path}')                
+                self.__print(f'{e} bucket={self.srcbucket} key={logfile}')            
 
         if self.srcfiles == []:
             try:
@@ -227,11 +211,6 @@ class IceLoad:
                     self.__print(f'Action {action}. Ошибка {srcfile} : {e}')
         elif self.metadata_source == 's3':
             if (action[0] == 'a') and (not self.loadmanytimes):
-                # s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
-                # pattern = r"s3a://([^/]+)/(.+)"
-                # match = re.match(pattern, s3path)
-                # if match:
-                #     bucket, s3key = match.group(1), match.group(2)
                 try:
                     processed_srcfiles = []
                     res = self.s3.get_object(Bucket=self.srcbucket, Key=logfile)
@@ -245,15 +224,8 @@ class IceLoad:
                     try:
                         self.s3.put_object(Bucket=self.srcbucket, Key=logfile, Body=s3body)
                     except Exception as e:
-                        self.__print(f'{e} Bucket {self.srcbucket}, Key {logfile}')
-                # else:
-                #     self.__print(f'ошибка получения bucket, key из {s3path}')                  
+                        self.__print(f'{e} Bucket {self.srcbucket}, Key {logfile}')            
             elif action[0] == 'p':
-                # s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
-                # pattern = r"s3a://([^/]+)/(.+)"
-                # match = re.match(pattern, s3path)
-                # if match:
-                #     bucket, s3key = match.group(1), match.group(2)
                 forDeletion = [{'Key': logfile}]
                 try:
                     res = self.s3.delete_objects(Bucket=self.srcbucket, Delete={'Objects': forDeletion})
@@ -278,12 +250,12 @@ class IceLoad:
         self.insert_table = self.md_params[self.md].get('insert_table', list())
         self.insert_values = self.md_params[self.md].get('insert_values', list())
         self.merge = self.md_params[self.md].get('merge', list())
+        self.merge15 = self.md_params[self.md].get('merge15', list())
         self.insert_where = self.md_params[self.md].get('insert_where', '(1=1)')
         self.insert_order = self.md_params[self.md].get('insert_order', '')
         self.views = self.md_params[self.md].get('views', '')
         self.safe_dml = TypeAdapter(bool).validate_python(self.md_params[self.md].get('safe_dml', self.safe_dml_default))
         self.add_identifier = self.md_params[self.md].get('add_identifier', '')
-        self.__print_init_params()
 
     def __print(self, msg: str):
         """Метод-заглушка для сохранения журнала обработки. 
@@ -365,6 +337,7 @@ class IceLoad:
         """Последовательный запуск (в цикле) определенных для сессии действий.
         Также, выполняется установка каталог.бд по умолчанию для всех SQL-команд
         """
+        self.__print_init_params()
         self.__init_spark()
         self.spark.sql("use {0}".format(self.sparkdb)).show(10)
         for item in self.actions:
@@ -408,8 +381,6 @@ class IceLoad:
                 self.__action_recreate_attr()
             elif item == 'merge12':
                 self.__action_merge('12')
-            elif item == 'merge15':
-                self.__action_merge('15')
             elif item == 'views':
                 self.__action_views()
             elif item == 'checks':
@@ -602,7 +573,9 @@ class IceLoad:
         для dstype=adso-nc метод находится в статусе "доработка"
 
         Args:
-            n (str, optional): номера таблиц (откуда->куда), соотв. таблице в ADSO (1,2 или 5). Defaults to '0'.
+            n (str, optional): номера таблиц (откуда->куда), соотв. таблице в ADSO (1,2).
+            Defaults to '0'.
+            Если adso-ncum, то внутри merge 12 добавляется merge 15
         """
         target_table = '{0}{1}'.format(self.tbl_name, n[1])
         source_table = '{0}{1}'.format(self.tbl_name, n[0])
@@ -625,17 +598,30 @@ class IceLoad:
                 .format(target_table, self.sparkdb, source_table,
                         self.merge, self.md, self.request_fields_join)
             self.spark.sql(query).show(2)
-            self.__action_delete("1")  # как и при активации ADSO - удаляем
-        elif (self.dstype == 'adso-cube') and (n == '12'):
+            self.__print('{0} MERGE{3} INTO {2}.{1}'.format(self.__get_time(), target_table, self.sparkdb, n))
+            self.__action_delete("1")  # как и при активации ADSO - удаляем уже обработанные данные
+            self.__post_processing(target_table)
+        elif (self.dstype in ['adso-cube', 'adso-ncum']) and (n == '12'):
             query = '''MERGE INTO {1}.{0} AS target USING (SELECT
                         {2}, {3} FROM {1}.{4} GROUP BY {2}) AS source ON {5}'''\
                 .format(target_table, self.sparkdb, self.key_fields, self.sum_keyfigures,
                         source_table, self.merge)
-            # print(query)
+            print(query)
             self.spark.sql(query).show(2)
+            self.__print('{0} MERGE {3} INTO {2}.{1}'.format(self.__get_time(), target_table, self.sparkdb, n))
+            self.__post_processing(target_table)
+            if self.dstype == 'adso-ncum':
+                target_table5 = '{0}{1}'.format(self.tbl_name, '5')
+                key_fields5 = self.key_fields.upper().replace("CALDAY,", "")
+                query = '''MERGE INTO {1}.{0} AS target USING (SELECT MIN(calday) as CALDAY, 
+                            {2}, {3} FROM {1}.{4} GROUP BY {2}) AS source ON {5}'''\
+                    .format(target_table5, self.sparkdb, key_fields5, self.sum_keyfigures,
+                            source_table, self.merge15)
+                print(query)
+                self.spark.sql(query).show(2)
+                self.__print('{0} MERGE {3} INTO {2}.{1}'.format(self.__get_time(), target_table5, self.sparkdb, n))
+                self.__post_processing(target_table5)
             self.__action_delete("1")  # как и при активации ADSO - удаляем
-        elif (self.dstype == 'adso-nc') and (n == '12'):
-            pass
         else:
             pass
 
@@ -666,7 +652,6 @@ class IceLoad:
     def __action_views(self):
         """Действие: создание ракурсов данных. Перечень ракурсов закодирован в параметре views в config.yaml
         12 - union для 2-х таблиц 1 и 2
-        
         Метод находится в статусе "доработка". 
         """
         views_lst = str(self.views).split(',')

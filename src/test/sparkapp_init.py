@@ -1,12 +1,15 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import asc
-import spark_const
+import spark_const_test
 import yaml
 
 database = 'db'
-sparkdb = "{0}.{1}".format(spark_const.spark_catalog, database)
+sparkdb = "{0}.{1}".format(spark_const_test.spark_catalog, database)
 
-spark = SparkSession.builder.master("local[2]").config(conf=spark_const.conf_2g_ice_warehouse2).getOrCreate()
+spark = SparkSession.builder.master("local[2]").config(conf=spark_const_test.conf_2g_ice_warehouse2).getOrCreate()
+print(spark.sql("SELECT * FROM local.db.dwh_t_plant").count())
+quit()
+
 li = '/home/alpine/etlakehouse/data/cmlc07p331/CMLC07P331_20241225.csv'
 
 delimiter = ','

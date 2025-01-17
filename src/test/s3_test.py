@@ -4,6 +4,12 @@ import yaml
 import os
 
 
+# s3path = f'{self.metadata.rpartition('/')[0]}/{logfile}'
+# pattern = r"s3a://([^/]+)/(.+)"
+# match = re.match(pattern, s3path)
+# if match:
+#     bucket, s3key = match.group(1), match.group(2)
+
 YC_ACCESS_KEY_ID = os.environ.get("YC_ACCESS_KEY_ID") if os.environ.get("YC_ACCESS_KEY_ID") else ''
 YC_SECRET_ACCESS_KEY = os.environ.get("YC_SECRET_ACCESS_KEY") if os.environ.get("YC_SECRET_ACCESS_KEY") else ''
 YC_REGION_NAME = os.environ.get("YC_REGION_NAME") if os.environ.get("YC_REGION_NAME") else ''
