@@ -7,8 +7,9 @@ database = 'db'
 sparkdb = "{0}.{1}".format(spark_const_test.spark_catalog, database)
 
 spark = SparkSession.builder.master("local[2]").config(conf=spark_const_test.conf_2g_ice_warehouse2).getOrCreate()
-print(spark.sql("SELECT * FROM local.db.dwh_t_plant").count())
-quit()
+spark.sparkContext.setLogLevel('ERROR')
+# print(spark.sql("SELECT * FROM local.db.dwh_t_plant").count())
+# quit()
 
 li = '/home/alpine/etlakehouse/data/cmlc07p331/CMLC07P331_20241225.csv'
 
@@ -26,6 +27,16 @@ delimiter = ','
 # quit()
 # spark.sql("SELECT plant FROM local.db.dwh_t_plant ORDER BY 1").show(1000, truncate=False)
 
+tables = ['dwh_t_plant', 'dwh_t_material', 'sys_t_calday', 'dwh_t_cmlc7o992']
+
+for t in tables:
+    df1 = spark.sql(f"SHOW CREATE TABLE {sparkdb}.{t}")
+    stmt = df1.collect()[0][0]
+    print(stmt)
+    # df1.show(10, truncate=False)
+
+quit()
+
 df = spark.sql("SELECT * FROM {0}.dwh_t_cmlc07p33{1}".format(sparkdb, '2'))
 # df.printSchema()
 # df.show(10, truncate=False)
@@ -34,6 +45,8 @@ spark.sql("DELETE FROM {0}.dwh_t_cmlc07p33{1} WHERE plant > '0020'".format(spark
 df = spark.sql("SELECT * FROM {0}.dwh_t_cmlc07p33{1}".format(sparkdb, '2'))
 print('AFTER DELETE ' + str(df.count()))
 quit()
+
+
 # ***************************************************************
 
 # spark.sql('''SHOW CREATE TABLE db.dwh_t_{0}'''.format(li['t'])).show(100, truncate=False)

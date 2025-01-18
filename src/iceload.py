@@ -243,10 +243,10 @@ class IceLoad:
         self.key_fields_create = self.md_params[self.md].get('key_fields_create', '')
         self.sum_keyfigures = self.md_params[self.md].get('sum_keyfigures', '1 as rowcnt')
         self.create_table = self.md_params[self.md].get('create_table', list())
-        
+
         partition = self.md_params[self.md].get('partition', '')
         self.partition = f'PARTITIONED BY ( {partition} )' if partition != '' else ''
-        
+
         self.insert_table = self.md_params[self.md].get('insert_table', list())
         self.insert_values = self.md_params[self.md].get('insert_values', list())
         self.merge = self.md_params[self.md].get('merge', list())
@@ -294,7 +294,7 @@ class IceLoad:
         output = f'{ts.strftime("%Y-%m-%d %H:%M:%S")} {distance.seconds:04}s.'
         self.prev_ts = ts
         return output
-    
+
     def __get_timestr(self) -> str:
         """Генерация строки с текущим временем .
         Нужно для добавления в имя 
