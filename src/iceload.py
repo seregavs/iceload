@@ -116,8 +116,12 @@ class IceLoad:
         self.loadmanytimes = self.md_params[md].get('loadmanytimes', '')
         self.__init_params()
 
+    def get_s3(self, n: str) -> List[str]:
+        return self.__get_srcfiles_list_from_s3(n)
+
     def __get_srcfiles_list_from_s3(self, n: str) -> List[str]:
-        """Возвращает список файлов из заданной папки в заданном бакете s3
+        """Возвращает список файлов с данными из заданной папки в заданном бакете s3
+        файлы SUCCESS исключаются
             Пример:
              cmlc07p327/000000_0
              cmlc07p327/000001_0
@@ -126,12 +130,13 @@ class IceLoad:
         Returns:
             List[str]: _список файлов
         """
-        prefix = f't{n}/{self.md}' if n != '0' else self.md
-        res = self.s3.list_objects_v2(Bucket=self.srcbucket, Prefix=prefix, MaxKeys=1000)
+        prefix = f'{self.md}/t{n}' if n != '0' else self.md
+        res = self.s3.list_objects_v2(Bucket=self.srcbucket, Prefix=prefix, MaxKeys=90000)
         resource_list = list()
-        print(json.dumps(res, indent=2, default=str))
+        # print(json.dumps(res, indent=2, default=str))
         for item in res['Contents']:
             resource_list.append(str(item['Key']).partition('/')[2])
+        resource_list = [r for r in resource_list if '_SUCCESS' not in r]
         return resource_list
 
     def __prepare_srcfiles_list(self, n: str = '0') -> List[str]:
@@ -171,10 +176,10 @@ class IceLoad:
                 o_srcfiles = [x['f'] for x in json.loads(f'[{self.md_params[self.md]['srcfiles']}]')]
                 print(o_srcfiles)
             except Exception as e:
-                print('{0} {1}'.format(self.__get_time(), e))
+                print('{0} Ошибка чтения значения для {1}'.format(self.__get_time(), e))
                 o_srcfiles = list()
 # Если в config.yaml нет файлов И указано имя бакета, то грузим список файлов из бакета
-            else:
+            finally:
                 if (not o_srcfiles) and (self.srcbucket):
                     o_srcfiles = self.__get_srcfiles_list_from_s3(n)
         else:
@@ -243,10 +248,10 @@ class IceLoad:
         self.key_fields_create = self.md_params[self.md].get('key_fields_create', '')
         self.sum_keyfigures = self.md_params[self.md].get('sum_keyfigures', '1 as rowcnt')
         self.create_table = self.md_params[self.md].get('create_table', list())
-        
+
         partition = self.md_params[self.md].get('partition', '')
         self.partition = f'PARTITIONED BY ( {partition} )' if partition != '' else ''
-        
+
         self.insert_table = self.md_params[self.md].get('insert_table', list())
         self.insert_values = self.md_params[self.md].get('insert_values', list())
         self.merge = self.md_params[self.md].get('merge', list())
@@ -294,7 +299,7 @@ class IceLoad:
         output = f'{ts.strftime("%Y-%m-%d %H:%M:%S")} {distance.seconds:04}s.'
         self.prev_ts = ts
         return output
-    
+
     def __get_timestr(self) -> str:
         """Генерация строки с текущим временем .
         Нужно для добавления в имя 
@@ -504,6 +509,8 @@ class IceLoad:
                 df = self.spark.read.parquet(li)
             elif self.srcformat == 's3-orc':
                 df = self.spark.read.orc(f's3a://{self.srcbucket}/{self.md}/{li}')
+            elif self.srcformat == 's3-parquet':
+                df = self.spark.read.parquet(f's3a://{self.srcbucket}/{self.md}/{li}')
             
             suffix = n if n != '0' else ''
             tsrctbl_name = f'{self.srctbl_name}{suffix}'

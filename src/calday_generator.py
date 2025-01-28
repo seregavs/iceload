@@ -9,10 +9,11 @@ spark = SparkSession.builder.master("local[2]").config(conf=spark_const.conf_2g_
 spark.conf.set("spark.sql.session.locale", "ru")  # Не работает :(
 
 # INITIALIZATION
+icebergtbl_props = "/home/alpine/iceload/src/icebergtbl_props.yaml"  # для локальных хранений настроечных файлов (не в s3)
 start_date = date(2000, 1, 1)
 end_date = date(2030, 12, 31)
 src_table_name = 'stg_t_calday'
-with open("icebergtbl_props.yaml", "r") as f2:
+with open(icebergtbl_props, "r") as f2:
     tbl_props_params = yaml.safe_load(f2)
 tbl_props = tbl_props_params['iceberg_tbl_props_01']
 table_name = 'sys_t_calday'

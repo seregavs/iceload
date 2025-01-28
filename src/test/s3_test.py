@@ -26,7 +26,15 @@ s3 = session.client(
     service_name='s3',
     endpoint_url=YC_ENDPOINT_URL
 )
+# /
 
+print('start reading S3')
+response = s3.get_object(Bucket="stg-bi-1", Key="0datasource/bwp/settings_full.json")
+ds_settings = json.loads(response['Body'].read().decode('utf-8'))
+print(ds_settings)
+record = next(item for item in ds_settings["cmlc01c"] if item["id"] == "1")
+print(record["query"])
+quit()
 #  for key in s3.list_objects(Bucket='stg-bi-1')['Contents']:
 #     print(key['Key'])
 
@@ -48,21 +56,21 @@ for item in res['Contents']:
 #     md_params = yaml.safe_load(res['Body'].read().decode('utf-8'))
 #     print(md_params['plant']['srcfiles'])
 
-try:
-    res = s3.get_object(Bucket='stg-bi-1', Key='srcfile.log')
-except Exception as e:
-    print(e)
-    srcfiles_tmp = []
-else:
-    content2 = res['Body'].read().decode('utf-8')
-    srcfiles_tmp = str(content2).split('\n')
-    print(srcfiles_tmp)
-finally:
-    srcfiles = srcfiles_tmp
-    # srcfiles.append(srcfiles_tmp)
-    srcfiles.append('/home/alpine/iceload/data/cmlc01c/t1/cmlc01c1_20250110.orc')
-    srcfiles.append('/home/alpine/iceload/data/cmlc01c/t1/cmlc01c1_20250111.orc')
-    print(srcfiles)
-    s3body = '\n'.join(srcfiles)
-    print(s3body)
-    s3.put_object(Bucket='stg-bi-1', Key='srcfile.log', Body=s3body)
+# try:
+#     res = s3.get_object(Bucket='stg-bi-1', Key='srcfile.log')
+# except Exception as e:
+#     print(e)
+#     srcfiles_tmp = []
+# else:
+#     content2 = res['Body'].read().decode('utf-8')
+#     srcfiles_tmp = str(content2).split('\n')
+#     print(srcfiles_tmp)
+# finally:
+#     srcfiles = srcfiles_tmp
+#     # srcfiles.append(srcfiles_tmp)
+#     srcfiles.append('/home/alpine/iceload/data/cmlc01c/t1/cmlc01c1_20250110.orc')
+#     srcfiles.append('/home/alpine/iceload/data/cmlc01c/t1/cmlc01c1_20250111.orc')
+#     print(srcfiles)
+#     s3body = '\n'.join(srcfiles)
+#     print(s3body)
+#     s3.put_object(Bucket='stg-bi-1', Key='srcfile.log', Body=s3body)
