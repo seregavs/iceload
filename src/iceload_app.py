@@ -36,11 +36,17 @@ if __name__ == "__main__":
     # ilList.append(IceLoad("cmlc01c", ["/home/alpine/iceload/data/cmlc01c/t5/cmlc01c5_20250110.orc"], 
     #               ["dropcreate5", "insert5"], "/home/alpine/iceload/data/cmlc01c/config.yaml"))
 
-    ilList.append(IceLoad("plant", [], ["delete", "insert"],
-                  "s3a://stg-bi-1/0datasource/bwp/plant/config.yaml"))
+    # ilList.append(IceLoad("plant", [], ["delete", "insert"],
+    #               "s3a://stg-bi-1/0datasource/bwp/plant/config.yaml"))
+    ilList.append(IceLoad("cmlc07p33", [], ["insert2"],
+                #   "/home/alpine/iceload/data/cmlc07p33/config.yaml",
+                  "s3a://stg-bi-1/0datasource/bwp/cmlc07p33/config.yaml"))
     # ilList.append(IceLoad("cmlc01c", [],
     #               ["merge12"], "/home/alpine/iceload/data/cmlc01c/config.yaml"))
     for il in ilList:
+        # il.srcbucket = 'stg-bi-1'
+        # lst = il.get_s3('2')
+        # print(lst)
         il.run_action()
         il.finish()
 

@@ -11,7 +11,16 @@ spark.sparkContext.setLogLevel('ERROR')
 # print(spark.sql("SELECT * FROM local.db.dwh_t_plant").count())
 # quit()
 
-li = '/home/alpine/etlakehouse/data/cmlc07p331/CMLC07P331_20241225.csv'
+# li = '/home/alpine/etlakehouse/data/cmlc07p331/CMLC07P331_20241225.csv'
+# li = "/home/alpine/iceload/data/cmlc07p33/t2/cmlc07p33_20240101"
+# df = spark.read.parquet(li)
+# df.printSchema()
+# df.createOrReplaceTempView('stg_t_cmlc07p33')
+# df = spark.sql('SELECT `/BIC/ZICOMARGN` FROM stg_t_cmlc07p33')
+df = spark.sql('SELECT * FROM local.db.dwh_t_cmlc07p332')
+df.printSchema()
+df.show(10, truncate=False)
+quit()
 
 delimiter = ','
 ## https://spark.apache.org/docs/3.5.3/sql-data-sources-csv.html

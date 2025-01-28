@@ -3,12 +3,13 @@ cmlc07p33:
   key_fields_create: base_uom STRING  NOT NULL, calday DATE, comp_code STRING  NOT NULL,dcindic STRING  NOT NULL,inv_pty STRING  NOT NULL, loc_currcy STRING  NOT NULL, material STRING  NOT NULL, mat_unit STRING  NOT NULL, move_type STRING  NOT NULL, plant STRING  NOT NULL, stockcat STRING  NOT NULL, stocktype STRING  NOT NULL, stor_loc STRING  NOT NULL, username STRING  NOT NULL, vendor STRING  NOT NULL,zmatmrea STRING  NOT NULL, zsgtxt STRING  NOT NULL
   sum_keyfigures: SUM(quant_b) as quant_b, SUM(value_lc) as value_lc, SUM(zaltcost) as zaltcost, SUM(zicomargn) as zicomargn
   add_identifier: False
-  srcformat: parquet
+  srcformat: s3-parquet
   database: db
   dstype: adso-cube
   table_name: dwh_t_cmlc07p33
-  srcfiles: |
-    {"f": "/home/alpine/iceload/data/cmlc07p33/t1/cmlc07p331_20241225.parquet"}
+  srcbucket: stg-bi-1
+  # srcfiles: |
+  #   {"f": "/home/alpine/iceload/data/cmlc07p33/t2/cmlc07p33_20240101"}
   src_table_name: stg_t_cmlc07p33
   iceberg_tbl_props: iceberg_tbl_props_01
   create_table: |
@@ -68,17 +69,17 @@ cmlc07p33:
     ifnull(mat_unit,chr(0)),
     ifnull(move_type,chr(0)),
     ifnull(plant,chr(0)),
-    CAST(quant_b as decimal(17,3)),
+    quant_b,
     ifnull(stockcat,chr(0)),
     ifnull(stocktype,chr(0)),
     ifnull(stor_loc,chr(0)),
     ifnull(username,chr(0)),
-    CAST(value_lc as decimal(17,2)),
+    value_lc,
     ifnull(vendor,chr(0)),
-    CAST(zaltcost as decimal(17,2)),
-    ifnull(zmatmrea,chr(0)),
-    ifnull(zsgtxt,chr(0)),
-    CAST(zicomargn as decimal(17,2))
+    `/BIC/ZALTCOST`,
+    ifnull(`/BIC/ZMATMREA`,chr(0)),
+    ifnull(`/BIC/ZSGTXT`,chr(0)),
+    `/BIC/ZICOMARGN`
   merge: |
     target.base_uom = source.base_uom AND
     target.calday = source.calday AND
